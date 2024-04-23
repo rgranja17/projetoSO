@@ -1,4 +1,6 @@
 #include "../include/client.h"
+#include "../include/input.h"
+#include "../include/orchestrator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,33 +11,36 @@
 #define FIFO_NAME "task_fifo"
 
 int main(int argc, char*argv[]) {
-   if (argc < 4) {
-      printf("Uso: %s <tempo> <prog-a> [args]\n",argv[0]);
-      return 1;
-   }
-   // argumentos da linha de comandos
-   int tempo = atoi(argv[1]);
-   char *programa = argv[2];
-   char *args = argv[3];
 
-   mkfifo(FIFO_NAME,0666);
+    Input* userInput = parse(argv, argc);
+    if (userInput == NULL) {
+        printf("Uso: %s execute <tempo> <flag> <prog-a> [args]\n", argv[0]);
+        printf("Uso: %s status\n", argv[0]);
+        return 1; // Retorna 1 se a entrada estiver incorreta
+    }
 
-   int fd = open(FIFO_NAME,O_WRONLY);
-   if(fd == -1) {
-      perror("Erro ao abrir o pipe");
-      return 1;
-   }
-   
-   //Enviar solicitação ao servidor
-   char mensagem[300];
-   snprintf(mensagem,sizeof(mensagem), "%d %s %s", tempo,programa,args);
-   write(fd,mensagem,strlen(mensagem));
+    Task task;
+    task.program = userInput->program;
+    task.time = userInput->time;
+    task.program_args = userInput->prog_arguments;
+    task.prog_num_args = userInput->prog_num_arguments;
 
-   //receber resposta do servidor (identificador da tarefa)
-   int identificador;
-   read(fd,&identificador,sizeof(identificador));
-   printf("Tarefa enviada. Identificador: %d\n",identificador);
+    int user_fifo = open(FIFO_NAME, O_WRONLY);
 
-   close(fd);
-   return 0;
+    if (user_fifo < 0) {
+        printf("Erro ao abrir o fifo do cliente\n");
+        freeInput(userInput);
+        return 1;
+    }
+
+    if (write(user_fifo, &task, sizeof(task)) < 0) {
+        printf("Erro ao enviar a tarefa\n");
+        freeInput(userInput);
+        close(user_fifo);
+        return 1;
+    }
+
+    freeInput(userInput);
+    close(user_fifo);
+    return 0;
 }
