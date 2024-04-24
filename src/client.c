@@ -1,4 +1,5 @@
 #include "../include/client.h"
+#include "../include/task.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +38,9 @@ int main(int argc, char* argv[]) {
          close(server_client_fifo);
 
          printf("Identificar único da tarefa: %d", tarefa.id);
+      } if(strcmp(argv[3],"-p") == 0){
+          printf("Flag -p ainda não disponivel");
+          return 1;
       }
        
    } else if(strcmp(argv[1],"status") == 0) {

@@ -1,4 +1,5 @@
 #include "../include/orchestrator.h"
+#include "../include/task.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,112 +11,112 @@
 #include <sys/time.h>
 
 #define FIFO_NAME "task_fifo"
-#define MAX_TASKS 100
-int num_tasks = 0;
-Task tarefa;
-Task queue[MAX_TASKS];
 
-void add_task(Task tarefa) {
-   int i;
-   for(i = 0; i < num_tasks; ++i) {
-      if(tarefa.tempo < queue[i].tempo) {
-         //desloca tarefas para abrir espaço para a nova tarefa
-         memmove(&queue[i+1],&queue[i],(num_tasks -i) * sizeof(Task));
-      }
-   }
-   queue[i] = tarefa;
-   num_tasks++;
-}
+int main(int argc, char** argv) {
+    if(argc < 3){
+        printf("Uso: %s <output-folder> <parallel-tasks>\n", argv[0]);
+        return 1;
+    }
 
-int main() {
+    int parallel_tasks = atoi(argv[2]);
+    Task queue[parallel_tasks];
+    int waiting_tasks = 0;
+    
+    if(parallel_tasks == 0){
+        printf("Introduza uma capacidade de pelo menos 1 tarefa paralela\n");
+        return 1;
+    }
+    char* outputPath = strdup(argv[2]); // deve ser introduzido /logs/tasks.log"
+
    
-   mkfifo(FIFO_NAME, 0666);
+    if(mkfifo(FIFO_NAME, 0666) == -1) {
+        perror("mkfifo");
+        return 1;
+    }
 
-   int logFile = open("/logs/tasks.log", O_WRONLY | O_CREAT | O_APPEND,0666);
-   if(!logFile) {
+   int logFile_fd = open(outputPath, O_WRONLY | O_CREAT | O_APPEND,0666);
+   if(!logFile_fd) {
       perror("Erro ao abrir tasks.log");
       return 1;
    }
    char header[] = "ID,Program,Arguments,Runtime\n";
-   write(logFile,header,strlen(header));
-
-
+   if(write(logFile_fd,header,strlen(header)) <= 0){
+       printf("Erro ao escrever no ficheiro log\n");
+       return 1;
+   }
 
    while(1) {
-      
 
-      int fd = open(FIFO_NAME,O_RDONLY);
-      if (fd == -1) {
-      perror("Erro ao abrir ao pipe");
-      return 1;
-      }
-      //implementar aqui a ideia de ler 
+       Task tarefa_execute;
+       Task tarefa_read;
+       int server_fifo = open(FIFO_NAME, O_RDONLY);
 
-      
+       if (server_fifo == -1) {
+           perror("Erro ao abrir ao pipe");
+           return 1;
+       }
 
-      struct timeval start, end;
-      gettimeofday(&start,NULL);
+       if ((read(server_fifo, &tarefa_read, sizeof(Task))) <= 0) {
+           perror("Erro ao ler do fifo");
+           return 1;
+       }
+       close(server_fifo);
 
-      char *token = strtok(tarefa.programa," ");
-      char *programa = token;
-      char *argumentos = NULL;
-      if(token != NULL) {
-         argumentos = strtok(NULL,"");
-      }
+       add_task(tarefa_read, queue, &waiting_tasks,parallel_tasks);//adiciona tarefa lida à queue
 
-      //criar processo filho para executar o programa
-      pid_t pid = fork();
-      if(pid == 0) {
-         execlp(programa,programa,argumentos,NULL);
-         perror("Erro ao executar o programa.");
-         _exit(1);
-      } else if (pid > 0) {
-         int status;
-         waitpid(pid,&status,0); //espera o processo filho terminar
+       tarefa_execute = getFaster(queue, parallel_tasks);
 
-         gettimeofday(&end,NULL);
-         long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
+       char *aux = strdup(tarefa_execute.programa);
+       char *token = strtok(aux, " ");
+       char *programa = token;
+       char *argumentos[11]; // 10 argumentos + 1 para NULL
 
-         fprintf(logFile, "%d,%s,%s,%ld\n",pid,programa,argumentos,runtime);
-         flush(logFile);
-         
-         tarefa[num_tasks].id = pid;
-         strcpy(tarefa[num_tasks].programa,programa);
-         tarefa[num_tasks].tempo = tempo;
-         num_tasks++;
+       int i = 0;
+       while (token != NULL && i < 10) {
+           argumentos[i++] = token;
+           token = strtok(NULL, " ");
+       }
+       argumentos[i] = NULL; // Terminate the argument list with NULL
+       free(aux);
 
-         //nao esquecer de enviar o identificador da tarefa de volta para o cliente
-         write(fd,&pid,sizeof(pid));
+       struct timeval start, end;
+       gettimeofday(&start, NULL);
 
-         } else {
-         perror("Erro ao criar o processo filho");
-      }
+       pid_t pid = fork();
+       if (pid == 0) {
+           tarefa_execute.pid = pid;
 
+           if(programa != NULL){
+               execvp(programa, argumentos);
+           }
+           perror("Erro ao executar o programa");
+           _exit(1);
+       } else if (pid > 0) {
+           int status;
+           waitpid(pid, &status, 0);
+
+           gettimeofday(&end, NULL);
+           long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
+
+            /*
+           fprintf(logFile, "%d,%s,%s,%ld\n", pid, programa, argumentos, runtime);
+           fflush(logFile);
+            */
+
+           tarefa_execute.tempo = (int)runtime;
+
+           server_fifo = open(FIFO_NAME,O_WRONLY);
+           if(write(server_fifo, &tarefa_execute.pid, sizeof(tarefa_execute.pid))<= 0){
+               perror("Erro ao escrever tarefa no fifo");
+               return 1;
+           }
+           close(server_fifo);
+
+           remove_task(tarefa_execute,queue, &waiting_tasks, parallel_tasks); // remove da fila de espera a tarefa feita
+
+       } else {
+           perror("Erro ao criar o processo filho");
+       }
    }
-/*  ESTA IMPLEMENTACAO É QUANDO TIVERMOS VARIAS TAREFAS, TEMOS APENAS PARA 1 A FUNCIONAR
-   //aguardar processos filhos
-   for(int i = 0; i<num_tasks;i++) {
-     int status;
-     pid_t filho_pid = waitpid(tasks[i].id,&status,0);
-     if (filho_pid == -1) {
-      perror("Erro na espera pelo processo filho");
-     } else {
-      if(WIFEXITED(status)) {
-         int exitStatus = WEXITSTATUS(status); // obter o codigo de saida do filho 
-         //calcula o tempo da execucao da tarefa (se necessario)
-         //registrar informacoes da tarefa concluida no arquivo log
-         fprintf(logFile, "Tarefa Concluída - ID: %d, Programa: %s, Tempo de execução: %d ms, Código de saída: %d\n", tasks[i].id,tasks[i].programa,tasks[i].tempo,exitStatus);
-         fflush(logFile);
-      } else {
-         //procesos filho terminou de forma anormal (zombie ex)
-         //registrar uma mensagem de erro no log
-         fprintf(logFile, "Erro: Tarefa com ID %d terminou de forma anormal.\n", tasks[i].id);
-         fflush(logFile);
-         }
-      }
-      
-   }
-   fclose(logFile);
-*/
-   return 0;   
+   return 0;
 }

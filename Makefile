@@ -13,7 +13,7 @@ all: folders $(TARGETS)
 folders:
 	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(LOGS_DIR) $(INCLUDE_DIR) $(SRC_DIR)
 
-$(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o
+$(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o $(OBJ_DIR)/task.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(BIN_DIR)/client: $(OBJ_DIR)/client.o
