@@ -23,9 +23,14 @@ int main(int argc, char*argv[]) {
     }
 
     Task task;
+    Answer ans;
+
     task.time = userInput->time;
+    task.command = userInput->command;
     task.program_args = userInput->prog_arguments;
     task.prog_num_args = userInput->prog_num_arguments;
+
+    mkfifo(FIFO_NAME,0666);
 
     int user_fifo = open(FIFO_NAME, O_WRONLY);
 
@@ -41,8 +46,15 @@ int main(int argc, char*argv[]) {
         close(user_fifo);
         return 1;
     }
+    close(user_fifo);
+
+    user_fifo = open(FIFO_NAME,O_RDONLY);
+    read(user_fifo,&ans,sizeof(Answer));
+    printf("%s",ans.result);
+
+    close(user_fifo);
 
     freeInput(userInput);
-    close(user_fifo);
+
     return 0;
 }
