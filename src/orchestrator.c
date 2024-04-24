@@ -22,16 +22,17 @@ int main() {
       return 1;
    }
 
-   FILE *logFile = fopen("tasks.log","a"); // abre o log no modo anexar
+   int logFile = open("/logs/tasks.log", O_WRONLY | O_CREAT | O_APPEND,0666);
    if(!logFile) {
       perror("Erro ao abrir tasks.log");
       close(fd);
       return 1;
    }
-   fprintf(logFile, "ID,Program,Arguments,Runtime\n"); // escreve o header
-   fflush(logFile);
+   char header[] = "ID,Program,Arguments,Runtime\n";
+   write(logFile,header,strlen(header));
 
-   struct Task tasks[100];
+
+   struct Task tasks[300];
    int num_tasks = 0;
 
    while(1) {
@@ -77,7 +78,7 @@ int main() {
       }
 
    }
-
+/*  ESTA IMPLEMENTACAO É QUANDO TIVERMOS VARIAS TAREFAS, TEMOS APENAS PARA 1 A FUNCIONAR
    //aguardar processos filhos
    for(int i = 0; i<num_tasks;i++) {
      int status;
@@ -101,6 +102,6 @@ int main() {
       
    }
    fclose(logFile);
+*/
    return 0;   
-} 
-   
+}
