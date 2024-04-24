@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Iinclude -Wall -pedantic -O2 -Werror=discarded-qualifiers -g
+CFLAGS = -Iinclude -Wall -pedantic -O2 -g
 LDFLAGS =
 TARGETS = orchestrator client
 OBJ_DIR = obj

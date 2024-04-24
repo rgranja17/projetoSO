@@ -13,6 +13,9 @@
 int main(int argc, char*argv[]) {
 
     Input* userInput = parse(argv, argc);
+
+    /*
+     */
     if (userInput == NULL) {
         printf("Uso: %s execute <tempo> <flag> <prog-a> [args]\n", argv[0]);
         printf("Uso: %s status\n", argv[0]);
@@ -20,7 +23,6 @@ int main(int argc, char*argv[]) {
     }
 
     Task task;
-    task.program = userInput->program;
     task.time = userInput->time;
     task.program_args = userInput->prog_arguments;
     task.prog_num_args = userInput->prog_num_arguments;

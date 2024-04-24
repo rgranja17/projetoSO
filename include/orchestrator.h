@@ -4,7 +4,6 @@
 typedef struct Task {
     int pid;
     int time;
-    char* program;
     char** program_args;
     int prog_num_args;
 } Task;
