@@ -1,28 +1,30 @@
 CC = gcc
-CFLAGS = -Iinclude -Wall -pedantic -O2 -g
+CFLAGS = -Wall -g -I$(INCLUDE_DIR)
 LDFLAGS =
-TARGETS = orchestrator client
+TARGETS = $(BIN_DIR)/orchestrator $(BIN_DIR)/client
 OBJ_DIR = obj
+INCLUDE_DIR = include
 BIN_DIR = bin
+LOGS_DIR = logs
 SRC_DIR = src
-TMP_DIR = tmp
 
 all: folders $(TARGETS)
 
-orchestrator: $(BIN_DIR)/orchestrator
-client: $(BIN_DIR)/client
-
 folders:
-	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(TMP_DIR)
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(LOGS_DIR) $(INCLUDE_DIR) $(SRC_DIR)
 
 $(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $(LDFLAGS) -o $@ $^
 
-$(BIN_DIR)/client: $(OBJ_DIR)/client.o $(OBJ_DIR)/input.o
-	$(CC) $(LDFLAGS) $^ -o $@
+$(BIN_DIR)/client: $(OBJ_DIR)/client.o
+	$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ_DIR)/*.o $(BIN_DIR)/*
+	@rm -f $(OBJ_DIR)/*.o $(BIN_DIR)/* $(LOGS_DIR)/*
+
+log:
+	@echo "Logging..." > $(LOGS_DIR)/tasks.log
+
