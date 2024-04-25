@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
         printf("Introduza uma capacidade de pelo menos 1 tarefa paralela\n");
         return 1;
     }
-    char* outputPath = strdup(argv[2]); // deve ser introduzido /logs/tasks.log"
+    char* outputPath = strdup(argv[1]); // deve ser introduzido /logs/tasks.log"
 
    
     if(mkfifo(FIFO_NAME, 0666) == -1) {
@@ -66,6 +66,8 @@ int main(int argc, char** argv) {
 
        tarefa_execute = getFaster(queue, parallel_tasks);
 
+       printf("%d %s\n",tarefa_execute.tempo ,tarefa_execute.programa);
+
        char *aux = strdup(tarefa_execute.programa);
        char *token = strtok(aux, " ");
        char *programa = token;
@@ -73,11 +75,11 @@ int main(int argc, char** argv) {
 
        int i = 0;
        while (token != NULL && i < 10) {
-           argumentos[i++] = token;
+           argumentos[i] = token;
            token = strtok(NULL, " ");
+           i++;
        }
        argumentos[i] = NULL; // Terminate the argument list with NULL
-       free(aux);
 
        struct timeval start, end;
        gettimeofday(&start, NULL);
@@ -117,6 +119,7 @@ int main(int argc, char** argv) {
        } else {
            perror("Erro ao criar o processo filho");
        }
+       free(aux);
    }
    return 0;
 }
