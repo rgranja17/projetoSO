@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
           return 1;
       }
        
-   } else if(strcmp(argv[1],"status") == 0) {
+   } else if(strcmp(argv[1],"status") == 0) { //CORRIGIR ISTO!!!!!
       //enviar o status ao servidor
       int client_servidor_fifo = open(FIFO_NAME,O_WRONLY);
       write(client_servidor_fifo,"status",sizeof(argv[1]));
@@ -59,5 +59,15 @@ int main(int argc, char* argv[]) {
       }
       close(servidor_cliente_fifo);
       
-      }
+      } else if(strcmp(argv[1],"quit") == 0){
+       strcpy(tarefa.programa,argv[1]);
+       tarefa.tempo = 0;
+
+       int client_servidor_fifo = open(FIFO_NAME,O_WRONLY);
+       write(client_servidor_fifo,&tarefa,sizeof(Task));
+       close(client_servidor_fifo);
+
    }
+
+   return 0;
+}
