@@ -1,5 +1,8 @@
 *.DS_Store
 *.exe
 *.o
-.vscode/
-.idea/
+*.vscode/
+*.idea/
+*.logs/
+*.obj/
+*.bin/
