@@ -13,7 +13,7 @@ typedef struct task {
     bool ocupada; // Flag para indicar se a posição está ocupada ou não
 } Task;
 
-void add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
+Task add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
 Task getFaster(Task* queue, int waiting_tasks);
 void remove_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
 int get_next_task_id();

@@ -48,7 +48,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    while (1) {
+    printf("Server running...\n");
+    while (1) { // ciclo para a opção -u
 
         Task tarefa_execute;
         Task tarefa_read;
@@ -65,9 +66,21 @@ int main(int argc, char** argv) {
         }
         close(server_fifo);
 
-        add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks);//adiciona tarefa lida à queue
+        tarefa_read = add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks);//adiciona tarefa lida à queue
+
+        server_fifo = open(FIFO_NAME, O_WRONLY);
+        if (write(server_fifo, &tarefa_read.id, sizeof(tarefa_read.id)) <= 0) {
+            perror("Erro ao escrever tarefa no fifo");
+            break;
+        }
+        close(server_fifo);
 
         tarefa_execute = getFaster(queue, parallel_tasks);
+
+        if(strcmp(tarefa_execute.programa,"quit") == 0){
+            remove_task(tarefa_execute,queue, &waiting_tasks, parallel_tasks);
+            break;
+        }
 
         char *aux = strdup(tarefa_execute.programa);
         char *token = strtok(aux, " ");
@@ -126,13 +139,6 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            server_fifo = open(FIFO_NAME, O_WRONLY);
-            if (write(server_fifo, &tarefa_execute.pid, sizeof(tarefa_execute.pid)) <= 0) {
-                perror("Erro ao escrever tarefa no fifo");
-                return 1;
-            }
-            close(server_fifo);
-
             remove_task(tarefa_execute, queue, &waiting_tasks,
                         parallel_tasks); // remove da fila de espera a tarefa feita
 
@@ -141,5 +147,7 @@ int main(int argc, char** argv) {
         }
         free(aux);
     }
+    unlink (FIFO_NAME);
+    printf("Server closed!\n");
     return 0;
 }

@@ -16,7 +16,7 @@ int get_next_task_id() {
     return next_task_id++;
 }
 
-void add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) {
+Task add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) {
     int task_id = get_next_task_id(); // Obter o próximo ID único
     tarefa.id = task_id; // Atribuir o ID à tarefa
 
@@ -28,6 +28,7 @@ void add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) 
             break;
         }
     }
+    return tarefa;
 }
 
 void remove_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) {
