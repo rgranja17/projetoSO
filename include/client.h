@@ -4,7 +4,7 @@
 
 
 typedef struct task{
-   pid_t id;
+   int id;
    char programa[100];
    int tempo; //ms
 } Task;

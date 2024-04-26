@@ -30,17 +30,17 @@ int main(int argc, char* argv[]) {
          //receber o identificador unico da tarefa
          int bytesRead = 0;
          int server_client_fifo = open(FIFO_NAME,O_RDONLY);
-         int identificador;
-         bytesRead = read(server_client_fifo,&identificador,sizeof(identificador));
+      
+         bytesRead = read(server_client_fifo,&tarefa.id,sizeof(tarefa.id));
          close(server_client_fifo);
 
-         printf("Identificar único da tarefa: %d", identificador);
+         printf("Identificar único da tarefa: %d", tarefa.id);
       }
        
    } else if(strcmp(argv[1],"status") == 0) {
       //enviar o status ao servidor
       int client_servidor_fifo = open(FIFO_NAME,O_WRONLY);
-      write(client_servidor_fifo,"status",sizeof(argv[1]));
+      write(client_servidor_fifo,"status: \n",sizeof(argv[1]));
       close(client_servidor_fifo);
 
       //recebe e exibe o status da tarefa ao servidor

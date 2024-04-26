@@ -32,9 +32,6 @@ int main() {
    write(logFile,header,strlen(header));
 
 
-   struct Task tasks[300];
-   int num_tasks = 0;
-
    while(1) {
       char mensagem[300];
       if(read(fd,mensagem,sizeof(mensagem)) <= 0){
@@ -52,7 +49,7 @@ int main() {
       //criar processo filho para executar o programa
       pid_t pid = fork();
       if(pid == 0) {
-         execlp(programa,programa,argumentos,NULL);
+         execlp(tarefa.programa,,argumentos,NULL);
          perror("Erro ao executar o programa.");
          _exit(1);
       } else if (pid > 0) {
