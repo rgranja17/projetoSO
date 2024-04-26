@@ -66,86 +66,110 @@ int main(int argc, char** argv) {
         }
         close(server_fifo);
 
-        tarefa_read = add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks);//adiciona tarefa lida à queue
+        tarefa_read = add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks); //adiciona tarefa lida à queue
 
         server_fifo = open(FIFO_NAME, O_WRONLY);
-        if (write(server_fifo, &tarefa_read.id, sizeof(tarefa_read.id)) <= 0) {
+
+        char idMsg[20];
+        snprintf(idMsg,sizeof(idMsg),"ID tarefa: %d\n", tarefa_read.id);
+
+        if (write(server_fifo, idMsg, strlen(idMsg)) <= 0) {
             perror("Erro ao escrever tarefa no fifo");
             break;
         }
+
         close(server_fifo);
 
         tarefa_execute = getFaster(queue, parallel_tasks);
 
-        if(strcmp(tarefa_execute.programa,"quit") == 0){
-            remove_task(tarefa_execute,queue, &waiting_tasks, parallel_tasks);
-            break;
+        remove_task(tarefa_execute, queue, &waiting_tasks,
+                    parallel_tasks); // remove da fila de espera a tarefa feita
+
+        if(strcmp(tarefa_execute.comando,"quit") == 0) break;
+
+        /*
+        if(strcmp(tarefa_execute.comando,"status") == 0){
+            char status[4096];
+            strcpy(status,"Executing:\n");
+            sprintf(status,"%d %s\n",tarefa_execute.id,tarefa_execute.programa);
+            sprintf(status,"Schedule:\n");
+            char* pendingTasks = getPendingTasks(queue,parallel_tasks,waiting_tasks);
+            sprintf(status,"%s",pendingTasks);
+
+
+            server_fifo = open(FIFO_NAME,O_RDONLY);
+            if((write(server_fifo,status,strlen(status))) < 0){
+                perror("Erro escrita");
+                continue;
+            }
+            close(server_fifo);
         }
+        */
 
-        char *aux = strdup(tarefa_execute.programa);
-        char *token = strtok(aux, " ");
-        char *programa = token;
-        char *argumentos[11]; // 10 argumentos + 1 para NULL
+        if(strcmp(tarefa_execute.comando,"execute") == 0){
 
-        int i = 0;
-        while (token != NULL && i < 10) {
-            argumentos[i] = token;
-            token = strtok(NULL, " ");
-            i++;
-        }
-        argumentos[i] = NULL; // Terminate the argument list with NULL
+            char *aux = strdup(tarefa_execute.programa);
+            char *token = strtok(aux, " ");
+            char *programa = token;
+            char *argumentos[11]; // 10 argumentos + 1 para NULL
 
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
+            int i = 0;
+            while (token != NULL && i < 10) {
+                argumentos[i] = token;
+                token = strtok(NULL, " ");
+                i++;
+            }
+            argumentos[i] = NULL; // Terminate the argument list with NULL
 
-        pid_t pid = fork();
-        if (pid == 0) {
-            if (programa != NULL) {
-                tarefa_execute.pid = pid;
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
 
-                char filename[10];
-                snprintf(filename,sizeof(filename), "Task%d.log", tarefa_execute.id);
+            pid_t pid = fork();
+            if (pid == 0) {
+                if (programa != NULL) {
+                    tarefa_execute.pid = getpid();
 
-                char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
-                strcpy(outputFile,outputPath);
-                strcat(outputFile,filename);
+                    char filename[10];
+                    snprintf(filename,sizeof(filename), "Task%d.log", tarefa_execute.id);
 
-                int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
-                if (!outputFile_fd) {
-                    perror("Erro ao abrir tasks.log");
+                    char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
+                    strcpy(outputFile,outputPath);
+                    strcat(outputFile,filename);
+
+                    int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
+                    if (!outputFile_fd) {
+                        perror("Erro ao abrir tasks.log");
+                        return 1;
+                    }
+
+                    dup2(outputFile_fd, STDOUT_FILENO);
+                    execvp(programa, argumentos);
+                }
+                perror("Erro ao executar o programa");
+                _exit(1);
+            } else if (pid > 0) {
+                int status;
+                waitpid(pid, &status, 0);
+
+                gettimeofday(&end, NULL);
+                long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
+
+                tarefa_execute.tempo = (int) runtime;
+
+                char logMsg[1024];
+                snprintf(logMsg, sizeof(logMsg), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n", tarefa_execute.pid,tarefa_execute.id,
+                         tarefa_execute.tempo, tarefa_execute.programa);
+
+                if((write(logFile_fd,&logMsg,strlen(logMsg))) < 0){
+                    perror("Erro a escrever no ficheiro");
                     return 1;
                 }
 
-                dup2(outputFile_fd, 1);
-                execvp(programa, argumentos);
+            } else {
+                perror("Erro ao criar o processo filho");
             }
-            perror("Erro ao executar o programa");
-            _exit(1);
-        } else if (pid > 0) {
-            int status;
-            waitpid(pid, &status, 0);
-
-            gettimeofday(&end, NULL);
-            long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
-
-            tarefa_execute.tempo = (int) runtime;
-
-            char logMsg[1024];
-            snprintf(logMsg, sizeof(logMsg), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n", tarefa_execute.pid,tarefa_execute.id,
-                     tarefa_execute.tempo, tarefa_execute.programa);
-
-            if((write(logFile_fd,&logMsg,strlen(logMsg))) < 0){
-                perror("Erro a escrever no ficheiro");
-                return 1;
-            }
-
-            remove_task(tarefa_execute, queue, &waiting_tasks,
-                        parallel_tasks); // remove da fila de espera a tarefa feita
-
-        } else {
-            perror("Erro ao criar o processo filho");
+            free(aux);
         }
-        free(aux);
     }
     unlink (FIFO_NAME);
     printf("Server closed!\n");

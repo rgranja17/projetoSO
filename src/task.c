@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <string.h>
 
 int next_task_id = 1;
 
@@ -51,6 +52,18 @@ Task getFaster(Task* queue, int parallel_tasks) {
     }
 
     return faster;
+}
+
+char* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks){
+    char* pendingTasks = malloc(300 * waiting_tasks * sizeof(char)); // 300(caracteres maximos de cada tarefa * nº tarefas * sizeof(char))
+    for(int i = 0; i < parallel_tasks; i++){
+        if(queue[i].ocupada){
+            char taskInfo[300];
+            snprintf(taskInfo,sizeof(taskInfo), "%d %s\n", queue[i].id, queue[i].programa);
+            strcat(pendingTasks,taskInfo);
+        }
+    }
+    return pendingTasks;
 }
 
 
