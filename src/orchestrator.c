@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     }
 
     printf("Server running...\n");
-    while (1) { // ciclo para a opção -u
+    while (1) {
 
         Task tarefa_execute;
         Task tarefa_read;
@@ -170,21 +170,21 @@ int main(int argc, char** argv) {
                         return 1;
                     }
                     free(aux);
-                    _exit(1);
+                    _exit(0);
                 } else {
                     perror("Erro ao criar o processo filho");
                 }
-                _exit(1);
+                _exit(0);
             }
         }
 
         if(strcmp(tarefa_execute.comando,"quit") == 0){
-            waitpid(pid1,&status1,0);
+            waitpid(pid1,NULL,0);
             break;
         }
     }
+
     unlink (FIFO_NAME);
     close(logFile_fd);
-    printf("Server closed!\n");
     return 0;
 }
