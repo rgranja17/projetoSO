@@ -16,7 +16,7 @@ folders:
 $(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o $(OBJ_DIR)/task.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-$(BIN_DIR)/client: $(OBJ_DIR)/client.o
+$(BIN_DIR)/client: $(OBJ_DIR)/client.o $(OBJ_DIR)/task.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c

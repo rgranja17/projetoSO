@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+#define MAX_QUEUE_SIZE 100
+#define QUEUE_FIFO "queue_fifo"
 
 typedef struct task {
     int id;
@@ -15,10 +17,13 @@ typedef struct task {
     bool ocupada; // Flag para indicar se a posição está ocupada ou não
 } Task;
 
-Task add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
-Task getFaster(Task* queue, int waiting_tasks);
-void remove_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
+int add_task();
+Task getFaster();
+void remove_task(Task tarefa);
 int get_next_task_id();
-char* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks);
+int getWaitingTasks();
+void freeQueue();
+void initQueue();
+void write_fifo(Task tarefa);
 
 #endif

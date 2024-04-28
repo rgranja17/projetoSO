@@ -23,21 +23,13 @@ int main(int argc, char* argv[]) {
             tarefa.tempo = atoi(argv[2]);
             strcpy(tarefa.comando,argv[1]);
             strcpy(tarefa.programa,argv[4]);
+            strcpy(tarefa.flag,argv[3]);
 
-            // solicitar a tarefa ao servidor
-            int client_server_fifo = open(FIFO_NAME,O_WRONLY);
-            write(client_server_fifo,&tarefa,sizeof(Task));
-            close(client_server_fifo);
+            write_fifo(tarefa);
+            printf("escrita fifo\n");
 
-
-            //receber o pid da tarefa
-            int bytesRead = 0;
-            int client_fifo = open(FIFO_NAME,O_RDONLY);
-            bytesRead = read(client_fifo,buf,sizeof(buf));
-            buf[bytesRead] = '\0';
-
-            write(STDOUT_FILENO,buf,bytesRead);
-            close(client_fifo);
+            int id = add_task();
+            printf("ID da tarefa: %d\n",id);
 
         } if(strcmp(argv[3],"-p") == 0){
             printf("Flag -p ainda não disponivel");
@@ -45,30 +37,11 @@ int main(int argc, char* argv[]) {
         }
 
     } else if(strcmp(argv[1],"status") == 0) {
-        strcpy(tarefa.comando,argv[1]);
-        tarefa.tempo = 0;
-
-        int client_servidor_fifo = open(FIFO_NAME,O_WRONLY);
-        write(client_servidor_fifo,&tarefa,sizeof(argv[1]));
-        close(client_servidor_fifo);
-
-
-        int bytesRead = 0;
-        int client_fifo = open(FIFO_NAME,O_RDONLY);
-        bytesRead = read(client_fifo,buf,sizeof(buf));
-        buf[bytesRead] = '\0';
-
-        write(STDOUT_FILENO,buf,bytesRead);
-        close(client_fifo);
+        // para fazer
 
     } else if(strcmp(argv[1],"quit") == 0){
-        strcpy(tarefa.comando,argv[1]);
-        tarefa.tempo = 0;
 
-        int client_servidor_fifo = open(FIFO_NAME,O_WRONLY);
-        write(client_servidor_fifo,&tarefa,sizeof(Task));
-        close(client_servidor_fifo);
-
+        // para fazer
     }
 
     return 0;

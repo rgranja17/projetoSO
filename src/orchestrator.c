@@ -9,29 +9,27 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #define FIFO_NAME "task_fifo"
+#define INTERNAL_FIFO "internal_fifo"
 
 int main(int argc, char** argv) {
     if (argc < 3) {
         printf("Uso: %s <output-folder> <parallel-tasks>\n", argv[0]);
         return 1;
     }
-
     int parallel_tasks = atoi(argv[2]);
-    Task queue[parallel_tasks];
-    int waiting_tasks = 0;
 
     if (parallel_tasks == 0) {
         printf("Introduza uma capacidade de pelo menos 1 tarefa paralela\n");
         return 1;
     }
-    char *outputPath = strdup(argv[1]); // deve ser introduzido /logs"
 
-    if (mkfifo(FIFO_NAME, 0666) == -1) {
-        perror("mkfifo");
-        return 1;
-    }
+    char *outputPath = strdup(argv[1]); // deve ser introduzido /logs"
+    int server_status = 1;
+    int waiting_tasks;
+    initQueue();
 
     char outputFileLog[256];
     snprintf(outputFileLog, sizeof(outputFileLog), "%s/Tasks.log", argv[1]);
@@ -48,95 +46,64 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    if (mkfifo(INTERNAL_FIFO, 0666) == -1) {
+        if(errno != EEXIST){
+            perror("Erro criação fifo");
+        }
+    }
+
+    int internal_fifo = open(INTERNAL_FIFO, O_RDWR);
+    if (internal_fifo == -1) {
+        perror("Erro ao abrir internal_fifo");
+        return 1;
+    }
+    write(internal_fifo, &server_status, sizeof(int));
+
     printf("Server running...\n");
-    while (1) {
+    while(1){
+        Task task_executing;
+        waiting_tasks = getWaitingTasks();
 
-        Task tarefa_execute;
-        Task tarefa_read;
-        int server_fifo = open(FIFO_NAME, O_RDONLY);
+        read(internal_fifo, &server_status, sizeof(int));
 
-        if (server_fifo == -1) {
-            perror("Erro ao abrir ao pipe");
-            return 1;
+        //printf("Server status: %d\n", server_status);
+        if(server_status && waiting_tasks > 0){
+            task_executing = getFaster();
+            remove_task(task_executing);
+
+            server_status = 0;
+            write(internal_fifo, &server_status, sizeof(int));
+        }else {
+            write(internal_fifo, &server_status, sizeof(int));
+            continue;
         }
 
-        if ((read(server_fifo, &tarefa_read, sizeof(Task))) <= 0) {
-            perror("Erro ao ler do fifo");
-            return 1;
-        }
-        close(server_fifo);
+        int status;
+        pid_t pid = fork();
+        if(pid == 0){
+            if(strcmp(task_executing.comando,"execute") == 0){
+                printf("Executar tarefa %d\n",task_executing.id);
+                char *aux = strdup(task_executing.programa);
+                char *token = strtok(aux, " ");
+                char *programa = token;
+                char *argumentos[11]; // 10 argumentos + 1 para NULL
 
-        tarefa_read = add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks); //adiciona tarefa lida à queue
-
-        server_fifo = open(FIFO_NAME, O_WRONLY);
-
-        char idMsg[20];
-        snprintf(idMsg,sizeof(idMsg),"ID tarefa: %d\n", tarefa_read.id);
-
-        if (write(server_fifo, idMsg, strlen(idMsg)) <= 0) {
-            perror("Erro ao escrever tarefa no fifo");
-            break;
-        }
-
-        close(server_fifo);
-
-        tarefa_execute = getFaster(queue, parallel_tasks);
-
-        remove_task(tarefa_execute, queue, &waiting_tasks,
-                    parallel_tasks); // remove da fila de espera a tarefa feita
-
-
-
-        /*
-        if(strcmp(tarefa_execute.comando,"status") == 0){
-            char status[4096];
-            strcpy(status,"Executing:\n");
-            sprintf(status,"%d %s\n",tarefa_execute.id,tarefa_execute.programa);
-            sprintf(status,"Schedule:\n");
-            char* pendingTasks = getPendingTasks(queue,parallel_tasks,waiting_tasks);
-            sprintf(status,"%s",pendingTasks);
-
-
-            server_fifo = open(FIFO_NAME,O_RDONLY);
-            if((write(server_fifo,status,strlen(status))) < 0){
-                perror("Erro escrita");
-                continue;
-            }
-            close(server_fifo);
-        }
-        */
-
-        int status1;
-        pid_t pid1 = fork();
-
-        if(pid1 == 0){
-            if(strcmp(tarefa_execute.comando,"execute") == 0){
-
-            char *aux = strdup(tarefa_execute.programa);
-            char *token = strtok(aux, " ");
-            char *programa = token;
-            char *argumentos[11]; // 10 argumentos + 1 para NULL
-
-            int i = 0;
-            while (token != NULL && i < 10) {
-                argumentos[i] = token;
-                token = strtok(NULL, " ");
-                i++;
-            }
-            argumentos[i] = NULL; // Terminate the argument list with NULL
-
-
-
+                int i = 0;
+                while (token != NULL && i < 10) {
+                    argumentos[i] = token;
+                    token = strtok(NULL, " ");
+                    i++;
+                }
+                argumentos[i] = NULL; // Terminate the argument list with NULL
                 struct timeval start, end;
                 gettimeofday(&start, NULL);
 
-                pid_t pid = fork();
-                if (pid == 0) {
+                pid_t pid1 = fork();
+                if(pid1 == 0){
                     if (programa != NULL) {
-                        tarefa_execute.pid = getpid();
-
+                        printf("A fazer tarefa %d\n",task_executing.id);
                         char filename[10];
-                        snprintf(filename,sizeof(filename), "Task%d.log", tarefa_execute.id);
+                        snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
 
                         char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
                         strcpy(outputFile,outputPath);
@@ -152,39 +119,36 @@ int main(int argc, char** argv) {
                     }
                     perror("Erro ao executar o programa");
                     _exit(1);
-                } else if (pid > 0) {
-                    int status;
-                    waitpid(pid, &status, 0);
-
-                    gettimeofday(&end, NULL);
-                    long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
-
-                    tarefa_execute.tempo = (int) runtime;
-
-                    char logMsg[1024];
-                    snprintf(logMsg, sizeof(logMsg), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n", tarefa_execute.pid,tarefa_execute.id,
-                             tarefa_execute.tempo, tarefa_execute.programa);
-
-                    if((write(logFile_fd,&logMsg,strlen(logMsg))) < 0){
-                        perror("Erro a escrever no ficheiro");
-                        return 1;
-                    }
-                    free(aux);
-                    _exit(0);
-                } else {
-                    perror("Erro ao criar o processo filho");
                 }
-                _exit(0);
+                waitpid(pid, &status, 0);
+
+                gettimeofday(&end, NULL);
+                long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
+
+                task_executing.tempo = (int) runtime;
+                task_executing.pid = getpid();
+
+                char logMsg[1024];
+                snprintf(logMsg, sizeof(logMsg), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n", task_executing.pid,task_executing.id,
+                         task_executing.tempo, task_executing.programa);
+
+                if((write(logFile_fd,&logMsg,strlen(logMsg))) < 0){
+                    perror("Erro a escrever no ficheiro");
+                    return 1;
+                }
+
+                printf("Tarefa %d feita\n", task_executing.id);
+                free(aux);
+
+                int new_status = 1;
+                write(internal_fifo, &new_status, sizeof(int));
+                _exit(1);
             }
         }
 
-        if(strcmp(tarefa_execute.comando,"quit") == 0){
-            waitpid(pid1,NULL,0);
-            break;
-        }
     }
-
-    unlink (FIFO_NAME);
-    close(logFile_fd);
+    close(internal_fifo);
+    freeQueue();
+    printf("Server closed!\n");
     return 0;
 }

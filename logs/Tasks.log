@@ -1,9 +1,0 @@
-ID,Program,Arguments,Runtime
-
--------
-Pid: 0 (LocalID: 2);Time: 10 ms;Arguments: ls -l
------
-
--------
-Pid: 0 (LocalID: 1);Time: 30009 ms;Arguments: ../progs-TP23_24/void 30
------
