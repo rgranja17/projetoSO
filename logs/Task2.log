@@ -1,4 +1,0 @@
-total 48
--rwxrwxr-x 1 rodri rodri 18992 abr 28 21:30 client
--rwxrwxr-x 1 rodri rodri 28344 abr 28 21:30 orchestrator
-prw-rw-r-- 1 rodri rodri     0 abr 28 21:31 task_fifo

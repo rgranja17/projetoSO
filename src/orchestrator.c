@@ -70,27 +70,26 @@ int main(int argc, char** argv) {
         }
         close(server_fifo);
 
-    if (strcmp(tarefa_read.comando, "status") == 0) {
+if (strcmp(tarefa_read.comando, "status") == 0) {
     server_fifo = open(FIFO_NAME, O_WRONLY);
     char status[4096];
     pendingTasks = getPendingTasks(queue, parallel_tasks, waiting_tasks);
 
     // Write executing task
-    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Executing:\n");
+    strncat(status, "Executing:\n", sizeof(status) - strlen(status));
     snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s\n", tarefa_read.id, tarefa_read.programa);
 
     // Write scheduled tasks
-    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Scheduled:\n");
-    for(int j = 0; j < waiting_tasks && pendingTasks[j].id != -1; j++){
+    strncat(status, "Scheduled:\n", sizeof(status) - strlen(status));
+    for(int j = 0; j < waiting_tasks && pendingTasks[j].id!= -1; j++){
         snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s\n", pendingTasks[j].id, pendingTasks[j].programa);
     }
 
     // Write completed tasks
-    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Completed:\n");
+    strncat(status, "Completed:\n", sizeof(status) - strlen(status));
     for (int i = 0; i < num_completed_tasks; i++) {
         snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s %d ms\n", completed_tasks[i].id, completed_tasks[i].programa, completed_tasks[i].tempo);
-    }       
-
+    }
     if (write(server_fifo, status, strlen(status)) <= 0) {
         perror("Erro ao escrever status no fifo");
         break;
@@ -160,7 +159,7 @@ int main(int argc, char** argv) {
                         perror("Erro ao abrir tasks.log");
                         return 1;
                     }
-
+                    sleep(20);
                     dup2(outputFile_fd, STDOUT_FILENO);
                     execvp(programa, argumentos);
                 }
