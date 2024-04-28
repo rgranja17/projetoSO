@@ -32,11 +32,14 @@ Task add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) 
     return tarefa;
 }
 
-void remove_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks) {
+void remove_task(Task tarefa, Task* queue, int num_completed, int* waiting_tasks, int parallel_tasks, Task* removed_tasks) {
+    num_completed = 0;
     for(int i = 0; i < parallel_tasks; i++) {
         if(queue[i].ocupada && queue[i].id == tarefa.id) {
             queue[i].ocupada = false; // Marca a posição como vazia
             (*waiting_tasks)--;
+            removed_tasks[num_completed] = queue[i];
+            num_completed++;
             break;
         }
     }
@@ -54,17 +57,16 @@ Task getFaster(Task* queue, int parallel_tasks) {
     return faster;
 }
 
-char* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks){
-    char* pendingTasks = malloc(300 * waiting_tasks * sizeof(char)); // 300(caracteres maximos de cada tarefa * nº tarefas * sizeof(char))
-    for(int i = 0; i < parallel_tasks; i++){
-        if(queue[i].ocupada){
-            char taskInfo[300];
-            snprintf(taskInfo,sizeof(taskInfo), "%d %s\n", queue[i].id, queue[i].programa);
-            strcat(pendingTasks,taskInfo);
+Task* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks) {
+    Task* pendingTasks = malloc(waiting_tasks * sizeof(Task));
+    int j = 0;
+    for (int i = 0; i < parallel_tasks; i++) {
+        if (queue[i].ocupada) {
+            pendingTasks[j] = queue[i];
+            j++;
         }
     }
     return pendingTasks;
 }
-
 
 

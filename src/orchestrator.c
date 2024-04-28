@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     }
 
     int parallel_tasks = atoi(argv[2]);
-    Task queue[parallel_tasks];
+    Task* queue = malloc(parallel_tasks * sizeof(Task));
     int waiting_tasks = 0;
 
     if (parallel_tasks == 0) {
@@ -49,8 +49,12 @@ int main(int argc, char** argv) {
     }
 
     printf("Server running...\n");
-    while (1) { // ciclo para a opção -u
 
+    Task* completed_tasks = malloc(100 * sizeof(Task));
+
+    while (1) { // ciclo para a opção -u
+        Task* pendingTasks;
+        int num_completed_tasks = 0;
         Task tarefa_execute;
         Task tarefa_read;
         int server_fifo = open(FIFO_NAME, O_RDONLY);
@@ -66,6 +70,37 @@ int main(int argc, char** argv) {
         }
         close(server_fifo);
 
+    if (strcmp(tarefa_read.comando, "status") == 0) {
+    server_fifo = open(FIFO_NAME, O_WRONLY);
+    char status[4096];
+    pendingTasks = getPendingTasks(queue, parallel_tasks, waiting_tasks);
+
+    // Write executing task
+    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Executing:\n");
+    snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s\n", tarefa_read.id, tarefa_read.programa);
+
+    // Write scheduled tasks
+    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Scheduled:\n");
+    for(int j = 0; j < waiting_tasks && pendingTasks[j].id != -1; j++){
+        snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s\n", pendingTasks[j].id, pendingTasks[j].programa);
+    }
+
+    // Write completed tasks
+    snprintf(status + strlen(status), sizeof(status) - strlen(status), "Completed:\n");
+    for (int i = 0; i < num_completed_tasks; i++) {
+        snprintf(status + strlen(status), sizeof(status) - strlen(status), "%d %s %d ms\n", completed_tasks[i].id, completed_tasks[i].programa, completed_tasks[i].tempo);
+    }       
+
+    if (write(server_fifo, status, strlen(status)) <= 0) {
+        perror("Erro ao escrever status no fifo");
+        break;
+    }
+    free(pendingTasks);
+
+    close(server_fifo);
+
+    continue;
+} else {
         tarefa_read = add_task(tarefa_read, queue, &waiting_tasks, parallel_tasks); //adiciona tarefa lida à queue
 
         server_fifo = open(FIFO_NAME, O_WRONLY);
@@ -82,31 +117,15 @@ int main(int argc, char** argv) {
 
         tarefa_execute = getFaster(queue, parallel_tasks);
 
-        remove_task(tarefa_execute, queue, &waiting_tasks,
-                    parallel_tasks); // remove da fila de espera a tarefa feita
+        remove_task(tarefa_execute,queue, num_completed_tasks, &waiting_tasks,
+                    parallel_tasks, completed_tasks); // remove da fila de espera a tarefa feita
 
         if(strcmp(tarefa_execute.comando,"quit") == 0) break;
 
-        /*
-        if(strcmp(tarefa_execute.comando,"status") == 0){
-            char status[4096];
-            strcpy(status,"Executing:\n");
-            sprintf(status,"%d %s\n",tarefa_execute.id,tarefa_execute.programa);
-            sprintf(status,"Schedule:\n");
-            char* pendingTasks = getPendingTasks(queue,parallel_tasks,waiting_tasks);
-            sprintf(status,"%s",pendingTasks);
 
 
-            server_fifo = open(FIFO_NAME,O_RDONLY);
-            if((write(server_fifo,status,strlen(status))) < 0){
-                perror("Erro escrita");
-                continue;
-            }
-            close(server_fifo);
-        }
-        */
-
-        if(strcmp(tarefa_execute.comando,"execute") == 0){
+    
+    if(strcmp(tarefa_execute.comando,"execute") == 0){
 
             char *aux = strdup(tarefa_execute.programa);
             char *token = strtok(aux, " ");
@@ -171,6 +190,9 @@ int main(int argc, char** argv) {
             free(aux);
         }
     }
+    }
+    
+    free(completed_tasks);
     unlink (FIFO_NAME);
     printf("Server closed!\n");
     return 0;

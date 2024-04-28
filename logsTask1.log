@@ -1,0 +1,12 @@
+total 48
+-rwxrwxr-x 1 rodri rodri 18992 abr 26 16:45 client
+-rwxrwxr-x 1 rodri rodri 28320 abr 26 16:45 orchestrator
+prw-rw-r-- 1 rodri rodri     0 abr 26 16:46 task_fifo
+total 48
+-rwxrwxr-x 1 rodri rodri 18992 abr 26 16:45 client
+-rwxrwxr-x 1 rodri rodri 28320 abr 26 16:45 orchestrator
+prw-rw-r-- 1 rodri rodri     0 abr 26 16:46 task_fifo
+total 48
+-rwxrwxr-x 1 rodri rodri 18992 abr 26 16:45 client
+-rwxrwxr-x 1 rodri rodri 28320 abr 26 16:45 orchestrator
+prw-rw-r-- 1 rodri rodri     0 abr 26 16:46 task_fifo

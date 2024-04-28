@@ -17,8 +17,8 @@ typedef struct task {
 
 Task add_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
 Task getFaster(Task* queue, int waiting_tasks);
-void remove_task(Task tarefa, Task* queue, int* waiting_tasks, int parallel_tasks);
+void remove_task(Task tarefa, Task* queue,int num_completed, int* waiting_tasks, int parallel_tasks, Task* removed_tasks);
 int get_next_task_id();
-char* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks);
+Task* getPendingTasks(Task* queue, int parallel_tasks, int waiting_tasks);
 
 #endif
