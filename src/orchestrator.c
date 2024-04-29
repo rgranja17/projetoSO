@@ -1,5 +1,6 @@
 #include "../include/orchestrator.h"
-#include "../include/task.h"
+#include "../include/scheduler.h"
+#include "../include/engine.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,31 +12,25 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#define FIFO_NAME "task_fifo"
-#define INTERNAL_FIFO "internal_fifo"
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        printf("Uso: %s <output-folder> <parallel-tasks>\n", argv[0]);
-        return 1;
+    if(argc < 3){
+        char error_message[30];
+        snprintf(error_message,sizeof(error_message),"Use: %s <output-path> <parallel_tasks>\n",argv[0]);
+        write(STDOUT_FILENO,error_message,strlen(error_message));
     }
-    int parallel_tasks = atoi(argv[2]);
-
-    if (parallel_tasks == 0) {
-        printf("Introduza uma capacidade de pelo menos 1 tarefa paralela\n");
-        return 1;
+    int max_parallel_tasks = atoi(argv[2]);
+    if(max_parallel_tasks == 0){
+        char error_message[] = "Min parallel tasks of zero\n";
+        write(STDOUT_FILENO,error_message,strlen(error_message));
     }
+    char outputPath[100];
+    strcpy(outputPath,argv[1]);
 
-    char *outputPath = strdup(argv[1]); // deve ser introduzido /logs"
-    int server_status = 1;
-    int waiting_tasks;
-    initQueue();
+    char output_log_file_path[256];
+    snprintf(output_log_file_path, sizeof(output_log_file_path), "%s/Tasks.log", argv[1]);
 
-    char outputFileLog[256];
-    snprintf(outputFileLog, sizeof(outputFileLog), "%s/Tasks.log", argv[1]);
-
-    // Abertura do arquivo de log
-    int logFile_fd = open(outputFileLog, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    int logFile_fd = open(output_log_file_path, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (logFile_fd == -1) {
         perror("Erro ao abrir/criar o arquivo de log");
         return 1;
@@ -46,109 +41,118 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (mkfifo(INTERNAL_FIFO, 0666) == -1) {
+    if (mkfifo(SERVER_CLIENT_FIFO, 0666) == -1) {
+        if(errno != EEXIST){
+            perror("Erro criação fifo");
+        }
+    }
+    if (mkfifo(CLIENT_SERVER_FIFO, 0666) == -1) {
         if(errno != EEXIST){
             perror("Erro criação fifo");
         }
     }
 
-    int internal_fifo = open(INTERNAL_FIFO, O_RDWR);
-    if (internal_fifo == -1) {
-        perror("Erro ao abrir internal_fifo");
-        return 1;
-    }
-    write(internal_fifo, &server_status, sizeof(int));
-
     printf("Server running...\n");
+    __scheduler_init__();
+    int num_tasks_executing = 0;
     while(1){
+        Task task_read;
         Task task_executing;
-        waiting_tasks = getWaitingTasks();
+        int server_client_fifo = open(SERVER_CLIENT_FIFO, O_WRONLY);
+        int client_server_fifo = open(CLIENT_SERVER_FIFO, O_RDONLY);
 
-        read(internal_fifo, &server_status, sizeof(int));
-
-        //printf("Server status: %d\n", server_status);
-        if(server_status && waiting_tasks > 0){
-            task_executing = getFaster();
-            remove_task(task_executing);
-
-            server_status = 0;
-            write(internal_fifo, &server_status, sizeof(int));
-        }else {
-            write(internal_fifo, &server_status, sizeof(int));
-            continue;
+        if(client_server_fifo == -1 || server_client_fifo == -1){
+            close(server_client_fifo);
+            close(client_server_fifo);
+            break;
         }
 
-        int status;
-        pid_t pid = fork();
-        if(pid == 0){
-            if(strcmp(task_executing.comando,"execute") == 0){
-                printf("Executar tarefa %d\n",task_executing.id);
-                char *aux = strdup(task_executing.programa);
-                char *token = strtok(aux, " ");
-                char *programa = token;
-                char *argumentos[11]; // 10 argumentos + 1 para NULL
+        if(num_tasks_executing < max_parallel_tasks){
+            ssize_t bytes_read;
+            ssize_t bytes_written;
 
-                int i = 0;
-                while (token != NULL && i < 10) {
-                    argumentos[i] = token;
-                    token = strtok(NULL, " ");
-                    i++;
-                }
-                argumentos[i] = NULL; // Terminate the argument list with NULL
-                struct timeval start, end;
-                gettimeofday(&start, NULL);
+            bytes_read = read(client_server_fifo,&task_read,sizeof(Task));
+            if(bytes_read == 0){ // eof do read porque não ha clientes a abrir extremo de escrita
+                if(!queue_empty()){ // arranjar uma forma melhor de fazer esta verificação
+                    task_executing = __schedule_get_task__();
 
-                pid_t pid1 = fork();
-                if(pid1 == 0){
-                    if (programa != NULL) {
-                        printf("A fazer tarefa %d\n",task_executing.id);
-                        char filename[10];
-                        snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
-
-                        char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
-                        strcpy(outputFile,outputPath);
-                        strcat(outputFile,filename);
-
-                        int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
-                        if (!outputFile_fd) {
-                            perror("Erro ao abrir tasks.log");
-                            return 1;
-                        }
-                        dup2(outputFile_fd, STDOUT_FILENO);
-                        execvp(programa, argumentos);
+                    pid_t pid = fork();
+                    if(pid == 0){
+                        __engine_execute_task(task_executing,outputPath,logFile_fd);
+                        _exit(1);
                     }
-                    perror("Erro ao executar o programa");
-                    _exit(1);
+                    close(server_client_fifo);
+                    close(client_server_fifo);
+                    continue;
+                } else {
+                    close(server_client_fifo);
+                    close(client_server_fifo);
+                    continue;
                 }
-                waitpid(pid, &status, 0);
+            }
+            if(bytes_read < 0){
+                perror("Error reading task\n");
+                close(server_client_fifo);
+                close(client_server_fifo);
+                break;
+            }
+            int id = __scheduler_add_task__(task_read);
+            bytes_written = write(server_client_fifo,&id,sizeof(int));
+            if(bytes_written <= 0){
+                perror("Error reading task\n");
+                close(server_client_fifo);
+                close(client_server_fifo);
+                break;
+            }
 
-                gettimeofday(&end, NULL);
-                long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
+            task_executing = __schedule_get_task__();
+            __scheduler_remove_task__(task_executing);
 
-                task_executing.tempo = (int) runtime;
-                task_executing.pid = getpid();
+            close(server_client_fifo);
+            close(client_server_fifo);
 
-                char logMsg[1024];
-                snprintf(logMsg, sizeof(logMsg), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n", task_executing.pid,task_executing.id,
-                         task_executing.tempo, task_executing.programa);
-
-                if((write(logFile_fd,&logMsg,strlen(logMsg))) < 0){
-                    perror("Erro a escrever no ficheiro");
-                    return 1;
-                }
-
-                printf("Tarefa %d feita\n", task_executing.id);
-                free(aux);
-
-                int new_status = 1;
-                write(internal_fifo, &new_status, sizeof(int));
+            pid_t pid = fork();
+            if(pid == 0){
+                __engine_execute_task(task_executing,outputPath,logFile_fd);
                 _exit(1);
             }
-        }
+            num_tasks_executing++;
+        } else{
+            ssize_t bytes_read;
+            ssize_t bytes_written;
 
+            if(client_server_fifo == -1 || server_client_fifo == -1){
+                close(server_client_fifo);
+                close(client_server_fifo);
+                break;
+            }
+
+            bytes_read = read(client_server_fifo,&task_read,sizeof(Task));
+
+            if(bytes_read == 0){
+                close(server_client_fifo);
+                close(client_server_fifo);
+                continue;
+            }
+            if(bytes_read < 0){
+                perror("Error reading task\n");
+                close(server_client_fifo);
+                close(client_server_fifo);
+                break;
+            }
+            int id = __scheduler_add_task__(task_read);
+
+            bytes_written = write(server_client_fifo,&id,sizeof(int));
+            if(bytes_written <= 0){
+                perror("Error reading task\n");
+                close(server_client_fifo);
+                close(client_server_fifo);
+                break;
+            }
+
+            close(server_client_fifo);
+            close(client_server_fifo);
+        }
     }
-    close(internal_fifo);
-    freeQueue();
-    printf("Server closed!\n");
     return 0;
 }
