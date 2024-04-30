@@ -15,6 +15,7 @@
 
 
 int next_task_id = 1;
+int waiting_tasks = 0;
 Task* queue;
 
 int get_next_task_id() {
@@ -62,6 +63,7 @@ int __scheduler_add_task__(Task task_to_add) {
         queue[insert_index] = task_to_add;
         queue[insert_index].ocupation = true;
     }
+    waiting_tasks++;
 
     return task_to_add.id;
 }
@@ -78,6 +80,22 @@ void __scheduler_remove_task__(Task task_to_remove) {
             break;
         }
     }
+    waiting_tasks--;
+}
+
+Task* __scheduler_get_schedule_tasks() { // mudar pra var local
+    Task* pendingTasks = malloc(waiting_tasks * sizeof(Task));
+    for (int i = 0,j = 0; i < waiting_tasks; i++) {
+        if (queue[i].ocupation) {
+            pendingTasks[j] = queue[i];
+            j++;
+        }
+    }
+    return pendingTasks;
+}
+
+int __scheduler_get_schedule_tasks_num(){
+    return waiting_tasks;
 }
 
 Task __schedule_get_task__(){

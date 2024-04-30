@@ -1,6 +1,7 @@
 #include "../include/orchestrator.h"
 #include "../include/scheduler.h"
 #include "../include/engine.h"
+#include "../include/status.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,17 +59,26 @@ int main(int argc, char** argv) {
 
     printf("Server running...\n");
     __scheduler_init__();
+    __status_init_(max_parallel_tasks);
     int num_tasks_executing = 0;
     while(1){
         Task task_read;
         int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
 
-        printf("\nTeste\n");
-
         while((read(server_client_fifo,&task_read,sizeof(Task))) > 0){
             Task task_executing;
             if(strcmp(task_read.flag,"C") == 0) {
                 num_tasks_executing--;
+                __status_remove_task_(task_read);
+                close(server_client_fifo);
+                continue;
+            }
+            if(strcmp(task_read.command,"status") == 0){
+                char buffer[4096];
+                buffer[0] = '\0';
+                strcat(buffer,__status_get_server_state());
+                server_client_fifo = open(SERVER_CLIENT_FIFO, O_WRONLY);
+                write(server_client_fifo,buffer,strlen(buffer));
                 close(server_client_fifo);
                 continue;
             }
@@ -84,8 +94,7 @@ int main(int argc, char** argv) {
             if((num_tasks_executing < max_parallel_tasks) && !queue_empty()){
                 task_executing = __schedule_get_task__();
                 __scheduler_remove_task__(task_executing);
-
-                printf("A executar tarefa %d(%d)\n", task_executing.id,task_read.id);
+                __status_add_task_(task_executing);
 
                 pid_t pid = fork();
                 if(pid == 0){
@@ -102,9 +111,11 @@ int main(int argc, char** argv) {
                 continue;
             }
         }
+
         if((num_tasks_executing < max_parallel_tasks) && !queue_empty()){
             Task task_executing = __schedule_get_task__();
             __scheduler_remove_task__(task_executing);
+            __status_add_task_(task_executing);
 
             pid_t pid = fork();
             if(pid == 0){
@@ -119,6 +130,7 @@ int main(int argc, char** argv) {
             }
             num_tasks_executing++;
         }
+
     }
     return 0;
 }

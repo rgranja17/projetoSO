@@ -23,5 +23,7 @@ Task __schedule_get_task__();
 void __scheduler_delete_queue__();
 bool queue_empty();
 int get_next_task_id();
+Task* __scheduler_get_schedule_tasks();
+int __scheduler_get_schedule_tasks_num();
 
 #endif
