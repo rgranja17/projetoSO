@@ -63,8 +63,6 @@ int main(int argc, char** argv) {
         Task task_read;
         int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
 
-        printf("\nTeste\n");
-
         while((read(server_client_fifo,&task_read,sizeof(Task))) > 0){
             Task task_executing;
             if(strcmp(task_read.flag,"C") == 0) {
