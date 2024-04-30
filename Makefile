@@ -14,10 +14,10 @@ all: folders $(TARGETS)
 folders:
 	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(LOGS_DIR) $(INCLUDE_DIR) $(SRC_DIR) $(TMP_DIR)
 
-$(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o $(OBJ_DIR)/scheduler.o $(OBJ_DIR)/engine.o
+$(BIN_DIR)/orchestrator: $(OBJ_DIR)/orchestrator.o $(OBJ_DIR)/scheduler.o $(OBJ_DIR)/engine.o $(OBJ_DIR)/status.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-$(BIN_DIR)/client: $(OBJ_DIR)/client.o $(OBJ_DIR)/scheduler.o $(OBJ_DIR)/engine.o
+$(BIN_DIR)/client: $(OBJ_DIR)/client.o $(OBJ_DIR)/scheduler.o $(OBJ_DIR)/engine.o $(OBJ_DIR)/status.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
