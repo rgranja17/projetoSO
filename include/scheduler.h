@@ -11,7 +11,7 @@ typedef struct task {
     pid_t pid;
     char command[10];
     char program[100];
-    char flag[2];
+    char flag[3];
     int time;
     bool ocupation;
 } Task;

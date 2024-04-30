@@ -10,6 +10,8 @@
 
 #define BUFFER_SIZE 4096
 
+#define SERVER_CLIENT_FIFO "../tmp/server_client_fifo"
+
 int main(int argc, char* argv[]) {
     Task tarefa;
     //char buf[BUFFER_SIZE];
@@ -24,21 +26,19 @@ int main(int argc, char* argv[]) {
             strcpy(tarefa.command,argv[1]);
             strcpy(tarefa.program,argv[4]);
             strcpy(tarefa.flag,argv[3]);
-
             int id;
 
-            printf("\npre abertura Abertura fifos\n");
-            int client_server_fifo = open(CLIENT_SERVER_FIFO, O_WRONLY);
-            int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
-            printf("\nAbertura fifos\n");
-            ssize_t bytes_written = 0;
-            bytes_written = write(client_server_fifo,&tarefa,sizeof(Task));
+            int server_client_fifo = open(SERVER_CLIENT_FIFO, O_WRONLY);
+            ssize_t bytes_written;
+            bytes_written = write(server_client_fifo,&tarefa,sizeof(Task));
             if(bytes_written <= 0){
                 perror ("Erro escrita fifo\n");
                 return 1;
             }
-
-            ssize_t bytes_read = 0;
+            close(server_client_fifo);
+            
+            server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
+            ssize_t bytes_read;
             bytes_read = read(server_client_fifo,&id, sizeof(int));
             if(bytes_read <= 0){
                 perror ("Erro escrita fifo\n");
@@ -46,7 +46,6 @@ int main(int argc, char* argv[]) {
             }
 
             close(server_client_fifo);
-            close(client_server_fifo);
 
             printf("ID da tarefa: %d\n",id);
 

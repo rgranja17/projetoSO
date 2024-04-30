@@ -12,6 +12,8 @@
 #include <sys/time.h>
 #include <errno.h>
 
+#define SERVER_CLIENT_FIFO "../tmp/server_client_fifo"
+#define INTERNAL_FIFO "../tmp/internal_fifo"
 
 int main(int argc, char** argv) {
     if(argc < 3){
@@ -43,12 +45,13 @@ int main(int argc, char** argv) {
 
     if (mkfifo(SERVER_CLIENT_FIFO, 0666) == -1) {
         if(errno != EEXIST){
-            perror("Erro criação fifo");
+            perror("Erro criação fifo\n");
         }
     }
-    if (mkfifo(CLIENT_SERVER_FIFO, 0666) == -1) {
+
+    if (mkfifo(INTERNAL_FIFO, 0666) == -1) {
         if(errno != EEXIST){
-            perror("Erro criação fifo");
+            perror("Erro criação fifo\n");
         }
     }
 
@@ -58,100 +61,52 @@ int main(int argc, char** argv) {
     while(1){
         Task task_read;
         Task task_executing;
-        int server_client_fifo = open(SERVER_CLIENT_FIFO, O_WRONLY);
-        int client_server_fifo = open(CLIENT_SERVER_FIFO, O_RDONLY);
+        int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
 
-        if(client_server_fifo == -1 || server_client_fifo == -1){
+        printf("\nTeste\n");
+
+        while((read(server_client_fifo,&task_read,sizeof(Task))) > 0){
+            if(strcmp(task_read.flag,"C") == 0) {
+                num_tasks_executing--;
+                continue;
+            }
             close(server_client_fifo);
-            close(client_server_fifo);
-            break;
-        }
-
-        if(num_tasks_executing < max_parallel_tasks){
-            ssize_t bytes_read;
-            ssize_t bytes_written;
-
-            bytes_read = read(client_server_fifo,&task_read,sizeof(Task));
-            if(bytes_read == 0){ // eof do read porque não ha clientes a abrir extremo de escrita
-                if(!queue_empty()){ // arranjar uma forma melhor de fazer esta verificação
-                    task_executing = __schedule_get_task__();
-
-                    pid_t pid = fork();
-                    if(pid == 0){
-                        __engine_execute_task(task_executing,outputPath,logFile_fd);
-                        _exit(1);
-                    }
-                    close(server_client_fifo);
-                    close(client_server_fifo);
-                    continue;
-                } else {
-                    close(server_client_fifo);
-                    close(client_server_fifo);
-                    continue;
-                }
-            }
-            if(bytes_read < 0){
-                perror("Error reading task\n");
-                close(server_client_fifo);
-                close(client_server_fifo);
-                break;
-            }
             int id = __scheduler_add_task__(task_read);
-            bytes_written = write(server_client_fifo,&id,sizeof(int));
-            if(bytes_written <= 0){
-                perror("Error reading task\n");
-                close(server_client_fifo);
-                close(client_server_fifo);
-                break;
-            }
-
-            task_executing = __schedule_get_task__();
-            __scheduler_remove_task__(task_executing);
-
+            server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+            write(server_client_fifo,&id,sizeof(int));
             close(server_client_fifo);
-            close(client_server_fifo);
+
+            if(num_tasks_executing < max_parallel_tasks && !queue_empty()){
+                task_executing = __schedule_get_task__();
+
+                pid_t pid = fork();
+                if(pid == 0){
+                    __engine_execute_task(task_executing,outputPath,logFile_fd);
+
+                    strcpy(task_executing.flag,"C");
+                    server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+                    write(server_client_fifo,&task_executing,sizeof(Task));
+                    close(server_client_fifo);
+
+                    _exit(1);
+                }
+                num_tasks_executing++;
+            }
+        }
+        while(num_tasks_executing < max_parallel_tasks && !queue_empty()){
+            task_executing = __schedule_get_task__();
 
             pid_t pid = fork();
             if(pid == 0){
                 __engine_execute_task(task_executing,outputPath,logFile_fd);
+
+                server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+                write(server_client_fifo,&task_executing,sizeof(Task));
+                close(server_client_fifo);
+
                 _exit(1);
             }
             num_tasks_executing++;
-        } else{
-            ssize_t bytes_read;
-            ssize_t bytes_written;
-
-            if(client_server_fifo == -1 || server_client_fifo == -1){
-                close(server_client_fifo);
-                close(client_server_fifo);
-                break;
-            }
-
-            bytes_read = read(client_server_fifo,&task_read,sizeof(Task));
-
-            if(bytes_read == 0){
-                close(server_client_fifo);
-                close(client_server_fifo);
-                continue;
-            }
-            if(bytes_read < 0){
-                perror("Error reading task\n");
-                close(server_client_fifo);
-                close(client_server_fifo);
-                break;
-            }
-            int id = __scheduler_add_task__(task_read);
-
-            bytes_written = write(server_client_fifo,&id,sizeof(int));
-            if(bytes_written <= 0){
-                perror("Error reading task\n");
-                close(server_client_fifo);
-                close(client_server_fifo);
-                break;
-            }
-
-            close(server_client_fifo);
-            close(client_server_fifo);
         }
     }
     return 0;
