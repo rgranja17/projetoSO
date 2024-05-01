@@ -16,7 +16,8 @@
 Task* executing_tasks;
 int parallel_tasks;
 
-void __status_init_(int max_parallel_tasks){
+//inicializa a estrutura de dados, recebe o número maximo de tarefas paralelas, depois aloca memoria para as tarefas, inicia a ocupacao tudo a falso
+void __status_init_(int max_parallel_tasks){ 
     executing_tasks = malloc(max_parallel_tasks * sizeof(Task));
     parallel_tasks = max_parallel_tasks;
 
@@ -24,6 +25,8 @@ void __status_init_(int max_parallel_tasks){
         executing_tasks[i].ocupation = false;
     }
 }
+
+// adicionar uma tarefa ao array
 
 void __status_add_task_(Task task_executing){
     for(int i = 0; i < parallel_tasks; i++){
@@ -34,6 +37,9 @@ void __status_add_task_(Task task_executing){
         }
     }
 }
+
+//remove a tarefa em especifico quando acaba de ser executada do array, e abre um ficheiro auxiliar e escreve a estrutura da tarefa executada
+//para posteriormente mandar para o cliente as tarefas que ja estao executadas
 
 void __status_remove_task_(Task task_executed){
     for(int i = 0; i < parallel_tasks; i++){
@@ -51,6 +57,8 @@ void __status_remove_task_(Task task_executed){
     close(fd);
 }
 
+// funcao que retorna as tarefas executas, abrindo o ficheiro auxiliar e ir lendo. interessa-nos apenas o tempo 
+
 char* __status_get_executed_tasks_(){
     int fd = open(AUXILIAR_FILE, O_RDONLY);
     char buffer[2048];
@@ -59,14 +67,16 @@ char* __status_get_executed_tasks_(){
     Task tmp;
     char aux[256];
     while((read(fd,&tmp,sizeof(Task))) > 0){
-        snprintf(aux, sizeof(aux), "%d %s\n", tmp.id, tmp.program);
-        strncat(buffer, aux, 2048 - strlen(buffer) - 1);
+        snprintf(aux, sizeof(aux), "%d %s %d\n", tmp.id, tmp.program,tmp.time);
+        strncat(buffer, aux, 2048 - strlen(buffer) - 1); // buffer é a string do destino à qual é adicionada a string aux (uma so tarefa)
     }
     close(fd);
     char* result = strdup(buffer); // Aloca memória dinamicamente e copia o conteúdo de buffer
     return result;
 }
 
+//adiciona ao array auxiliar as tarefas que estao em execucao e retorna-as, esta a percorrer o array de tasks, buscando cada tarefa e concateneia 
+//cada tarefa ao array auxiliar (executing_tasks_str)
 char* __status_get_executing_tasks_(){
     char executing_tasks_str[1024];
     executing_tasks_str[0] = '\0';
@@ -79,6 +89,7 @@ char* __status_get_executing_tasks_(){
     return result;
 }
 
+// retorna as tarefas que estao à espera para serem executas 
 char* __status_get_schedule_tasks_(){
     Task* pending_tasks = __scheduler_get_schedule_tasks();
     int schedule_tasks = __scheduler_get_schedule_tasks_num();
