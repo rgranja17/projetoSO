@@ -15,6 +15,43 @@
 #define MAX_PIPELINES 10
 #define MAX_PROGRAM_ARGS 11
 
+
+
+void fillArray(char *array[],char *command, int* num_pipelines) {
+    const char *delim = "|";
+    char *token;
+    int index = 0;
+
+    // Get the first token
+    token = strtok(command, delim);
+
+    // Walk through other tokens
+    while (token != NULL && index < MAX_PIPELINES) {
+        // Remove leading and trailing whitespace
+        while (*token == ' ')
+            token++;
+        int len = strlen(token);
+        while (len > 0 && token[len - 1] == ' ')
+            token[--len] = '\0';
+
+        // Allocate memory for the token and copy it to the array
+        array[index] = (char *)malloc((strlen(token) + 1) * sizeof(char));
+        strcpy(array[index], token);
+
+        // Get the next token
+        token = strtok(NULL, delim);
+        index++;
+        (*num_pipelines)++;
+    }
+
+    // Fill remaining slots with NULL
+    while (index < MAX_PIPELINES) {
+        array[index] = NULL;
+        index++;
+    }
+}
+
+
 Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd){
     char *aux = strdup(task_executing.program);
     char *token = strtok(aux, " ");
@@ -76,42 +113,24 @@ Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd
 }
 
 Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFile_fd) {
-    char* arguments[MAX_PIPELINES][MAX_PROGRAM_ARGS]; // Array para armazenar argumentos para cada programa
-    char* program_names[MAX_PIPELINES]; // Array para armazenar nomes de programas
+    char* pipe_programs[MAX_PIPELINES];
+    char* task_program_cpy = strdup(task_executing.program);
     int num_pipelines = 0;
 
-    char *token1;
-    char *program_copy = strdup(task_executing.program);
-    printf("\n%s\n",program_copy);
-    token1 = strtok(program_copy, "|");
+    char filename[10];
+    snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
 
-    while (token1 != NULL && num_pipelines < MAX_PIPELINES) { // parser a funcionar
-        char* token_cpy = strdup(token1);
-        char* token = strtok(token_cpy, " ");
-        program_names[num_pipelines] = token;
-
-        int i = 0;
-        while (token != NULL && i < 10) {
-            arguments[num_pipelines][i] = strdup(token);
-            token = strtok(NULL, " ");
-            i++;
-        }
-        num_pipelines++;
-        arguments[num_pipelines][i] = NULL;
-    }
-
-    char filename[15];
-    snprintf(filename, sizeof(filename), "Task%d.log", task_executing.id);
-
-    char* outputFile = malloc(strlen(outputPath) + strlen(filename) + 1);
-    strcpy(outputFile, outputPath);
-    strcat(outputFile, filename);
+    char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
+    strcpy(outputFile,outputPath);
+    strcat(outputFile,filename);
 
     int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
-    if (outputFile_fd < 0) {
-        perror("Erro ao abrir arquivo de saída");
-        exit(EXIT_FAILURE);
+    if (!outputFile_fd) {
+        perror("Erro ao abrir tasks.log");
+        _exit(0);
     }
+
+    fillArray(pipe_programs,task_program_cpy,&num_pipelines);
 
     int fd[MAX_PIPELINES - 1][2];
 
@@ -119,37 +138,73 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
     gettimeofday(&start, NULL);
 
     for (int i = 0; i < num_pipelines; ++i) {
-        printf("Program name: %s\n", program_names[i]);
-        printf("Arguments:");
-        for (int j = 0; arguments[i][j] != NULL; ++j) {
-            printf(" %s", arguments[i][j]);
+        char *aux = strdup(pipe_programs[i]);
+        char *token = strtok(aux, " ");
+        char *programa = token;
+        char *argumentos[11];
+
+        int j = 0;
+        while (token != NULL && j < 10) {
+            argumentos[j] = token;
+            token = strtok(NULL, " ");
+            j++;
         }
-        printf("\n");
-        pid_t pid = fork();
-        if (pid == 0) {
-            if (i == 0) { // primeiro
-                pipe(fd[0]);
-                dup2(fd[0][1], STDOUT_FILENO);
-                close(fd[0][1]);
+        argumentos[j] = NULL;
+
+        if (i == 0) {
+            pipe(fd[0]);
+            if(fork() == 0) {
+
+                dup2(fd[0][1], 1);
                 close(fd[0][0]);
-            } else if (i < num_pipelines - 1) { // meio
-                pipe(fd[i]);
-                dup2(fd[i-1][0], STDIN_FILENO);
-                dup2(fd[i][1], STDOUT_FILENO);
+                close(fd[0][1]);
+
+                execvp(programa, argumentos);
+
+                perror("Exec failed");
+                _exit(1);
+            }
+            close(fd[0][1]);
+
+        } else if (i < num_pipelines - 1) { // meio
+            pipe(fd[i]);
+            if(fork() == 0) {
+
+                dup2(fd[i - 1][0], 0);
+                // o de escrita anterior está fechado
+                close(fd[i - 1][0]);
+
+                dup2(fd[i][1], 1);
                 close(fd[i][0]);
                 close(fd[i][1]);
-            } else { // ultimo
-                pipe(fd[num_pipelines - 1]);
-                dup2(fd[num_pipelines - 2][0], STDIN_FILENO);
-                dup2(outputFile_fd, STDOUT_FILENO);
-                close(fd[num_pipelines - 1][0]);
-                close(fd[num_pipelines - 1][1]);
+
+
+                execvp(programa, argumentos);
+
+                perror("Exec failed");
+                _exit(1);
             }
-            execvp(program_names[i], arguments[i]);
-            perror("Erro ao executar o programa");
-            _exit(1);
+            close(fd[i - 1][0]);
+            close(fd[i][1]);
+
+
+        } else if(i == num_pipelines - 1){ // ultimo
+            if(fork() == 0) {
+
+                dup2(fd[i - 1][0], 0);
+                dup2(outputFile_fd,STDOUT_FILENO);
+                close(fd[i - 1][1]);
+                close(fd[i - 1][0]);
+
+                execvp(programa, argumentos);
+
+                perror("Exec failed");
+                _exit(1);
+            }
+            close(fd[i - 1][0]);
         }
     }
+
     for (int i = 0; i < num_pipelines; i++) {
         wait(NULL);
     }
