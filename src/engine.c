@@ -15,7 +15,7 @@
 #define MAX_PIPELINES 10
 #define MAX_PROGRAM_ARGS 11
 
-void __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd){
+Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd){
     char *aux = strdup(task_executing.program);
     char *token = strtok(aux, " ");
     char *programa = token;
@@ -72,33 +72,33 @@ void __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd
     }
 
     free(aux);
+    return task_executing;
 }
 
-void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFile_fd) {
+Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFile_fd) {
     char* arguments[MAX_PIPELINES][MAX_PROGRAM_ARGS]; // Array para armazenar argumentos para cada programa
     char* program_names[MAX_PIPELINES]; // Array para armazenar nomes de programas
     int num_pipelines = 0;
 
     char *token1;
     char *program_copy = strdup(task_executing.program);
+    printf("\n%s\n",program_copy);
     token1 = strtok(program_copy, "|");
 
     while (token1 != NULL && num_pipelines < MAX_PIPELINES) { // parser a funcionar
-        printf("\nToken1: %s\n", token1);
-        char *token = strdup(token1); // Fazer uma cópia para preservar a string original
-        program_names[num_pipelines] = strsep(&token, " "); // Extrair o nome do programa
+        char* token_cpy = strdup(token1);
+        char* token = strtok(token_cpy, " ");
+        program_names[num_pipelines] = token;
 
         int i = 0;
-        while (token != NULL && i < MAX_PROGRAM_ARGS) {
-            arguments[num_pipelines][i] = strsep(&token, " "); // Extrair os argumentos do programa
+        while (token != NULL && i < 10) {
+            arguments[num_pipelines][i] = strdup(token);
+            token = strtok(NULL, " ");
             i++;
         }
-        arguments[num_pipelines][i] = NULL; // Marcar o final dos argumentos
         num_pipelines++;
-        free(token); // Liberar a cópia do token
-        token1 = strtok(NULL, "|");
+        arguments[num_pipelines][i] = NULL;
     }
-    free(program_copy); // Liberar a cópia da string
 
     char filename[15];
     snprintf(filename, sizeof(filename), "Task%d.log", task_executing.id);
@@ -119,6 +119,12 @@ void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
     gettimeofday(&start, NULL);
 
     for (int i = 0; i < num_pipelines; ++i) {
+        printf("Program name: %s\n", program_names[i]);
+        printf("Arguments:");
+        for (int j = 0; arguments[i][j] != NULL; ++j) {
+            printf(" %s", arguments[i][j]);
+        }
+        printf("\n");
         pid_t pid = fork();
         if (pid == 0) {
             if (i == 0) { // primeiro
@@ -166,4 +172,5 @@ void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
     }
 
     free(outputFile);
+    return task_executing;
 }

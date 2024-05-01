@@ -59,7 +59,7 @@ char* __status_get_executed_tasks_(){
     Task tmp;
     char aux[256];
     while((read(fd,&tmp,sizeof(Task))) > 0){
-        snprintf(aux, sizeof(aux), "%d %s\n", tmp.id, tmp.program);
+        snprintf(aux, sizeof(aux), "%d %s %dms\n", tmp.id, tmp.program,tmp.time);
         strncat(buffer, aux, 2048 - strlen(buffer) - 1);
     }
     close(fd);
@@ -71,9 +71,12 @@ char* __status_get_executing_tasks_(){
     char executing_tasks_str[1024];
     executing_tasks_str[0] = '\0';
     for(int i = 0; i < parallel_tasks; i++){
-        char aux[256];
-        snprintf(aux,sizeof(aux),"%d %s\n",executing_tasks[i].id,executing_tasks[i].program);
-        strcat(executing_tasks_str,aux);
+        if(executing_tasks[i].ocupation){
+            char aux[256];
+            snprintf(aux,sizeof(aux),"%d %s\n",executing_tasks[i].id,executing_tasks[i].program);
+            strcat(executing_tasks_str,aux);
+        }
+
     }
     char* result = strdup(executing_tasks_str); // Aloca memória dinamicamente e copia o conteúdo de buffer
     return result;

@@ -56,10 +56,10 @@ int main(int argc, char** argv) {
     int num_tasks_executing = 0;
     while(1){
         Task task_read;
+        Task task_executing;
         int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
 
         while((read(server_client_fifo,&task_read,sizeof(Task))) > 0){
-            Task task_executing;
             if(strcmp(task_read.flag,"C") == 0) {
                 num_tasks_executing--;
                 __status_remove_task_(task_read);
@@ -91,8 +91,8 @@ int main(int argc, char** argv) {
 
                 pid_t pid = fork();
                 if(pid == 0){
-                    if(strcmp(task_executing.flag,"-u") == 0) __engine_execute_task(task_executing,outputPath,logFile_fd);
-                    if(strcmp(task_executing.flag,"-p") == 0) __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
+                    if(strcmp(task_executing.flag,"-u") == 0) task_executing = __engine_execute_task(task_executing,outputPath,logFile_fd);
+                    if(strcmp(task_executing.flag,"-p") == 0) task_executing = __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
 
                     strcpy(task_executing.flag,"C");
                     server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
@@ -105,16 +105,15 @@ int main(int argc, char** argv) {
                 continue;
             }
         }
-
         if((num_tasks_executing < max_parallel_tasks) && !queue_empty()){
-            Task task_executing = __schedule_get_task__();
+            task_executing = __schedule_get_task__();
             __scheduler_remove_task__(task_executing);
             __status_add_task_(task_executing);
 
             pid_t pid = fork();
             if(pid == 0){
-                if(strcmp(task_executing.flag,"-u") == 0) __engine_execute_task(task_executing,outputPath,logFile_fd);
-                if(strcmp(task_executing.flag,"-p") == 0) __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
+                if(strcmp(task_executing.flag,"-u") == 0) task_executing = __engine_execute_task(task_executing,outputPath,logFile_fd);
+                if(strcmp(task_executing.flag,"-p") == 0) task_executing = __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
 
                 strcpy(task_executing.flag,"C");
                 server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);

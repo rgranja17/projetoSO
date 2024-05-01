@@ -24,7 +24,13 @@ int main(int argc, char* argv[]) {
         if(strcmp(argv[3],"-u") == 0 || strcmp(argv[3],"-p") == 0){
             tarefa.time = atoi(argv[2]);
             strcpy(tarefa.command,argv[1]);
-            strcpy(tarefa.program,argv[4]);
+
+            // Construir o programa com os argumentos
+            strcpy(tarefa.program, argv[4]);
+            for (int i = 5; i < argc; i++) {
+                strcat(tarefa.program, " ");
+                strcat(tarefa.program, argv[i]);
+            }
             strcpy(tarefa.flag,argv[3]);
             int id;
 
