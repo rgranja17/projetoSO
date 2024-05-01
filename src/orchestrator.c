@@ -14,7 +14,6 @@
 #include <errno.h>
 
 #define SERVER_CLIENT_FIFO "../tmp/server_client_fifo"
-#define INTERNAL_FIFO "../tmp/internal_fifo"
 
 int main(int argc, char** argv) {
     if(argc < 3){
@@ -46,12 +45,6 @@ int main(int argc, char** argv) {
     }
 
     if (mkfifo(SERVER_CLIENT_FIFO, 0666) == -1) {
-        if(errno != EEXIST){
-            perror("Erro criação fifo\n");
-        }
-    }
-
-    if (mkfifo(INTERNAL_FIFO, 0666) == -1) {
         if(errno != EEXIST){
             perror("Erro criação fifo\n");
         }
@@ -98,7 +91,8 @@ int main(int argc, char** argv) {
 
                 pid_t pid = fork();
                 if(pid == 0){
-                    __engine_execute_task(task_executing,outputPath,logFile_fd);
+                    if(strcmp(task_executing.flag,"-u") == 0) __engine_execute_task(task_executing,outputPath,logFile_fd);
+                    if(strcmp(task_executing.flag,"-p") == 0) __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
 
                     strcpy(task_executing.flag,"C");
                     server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
@@ -119,7 +113,8 @@ int main(int argc, char** argv) {
 
             pid_t pid = fork();
             if(pid == 0){
-                __engine_execute_task(task_executing,outputPath,logFile_fd);
+                if(strcmp(task_executing.flag,"-u") == 0) __engine_execute_task(task_executing,outputPath,logFile_fd);
+                if(strcmp(task_executing.flag,"-p") == 0) __engine_execute_pipeline(task_executing,outputPath,logFile_fd);
 
                 strcpy(task_executing.flag,"C");
                 server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);

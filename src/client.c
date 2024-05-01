@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
         return 1;
 
     } else if(strcmp(argv[1],"execute") == 0) {
-        if(strcmp(argv[3],"-u") == 0){
+        if(strcmp(argv[3],"-u") == 0 || strcmp(argv[3],"-p") == 0){
             tarefa.time = atoi(argv[2]);
             strcpy(tarefa.command,argv[1]);
             strcpy(tarefa.program,argv[4]);
@@ -49,9 +49,6 @@ int main(int argc, char* argv[]) {
 
             printf("ID da tarefa: %d\n",id);
 
-        } if(strcmp(argv[3],"-p") == 0){
-            printf("Flag -p ainda não disponivel");
-            return 1;
         }
 
     } else if(strcmp(argv[1],"status") == 0) {

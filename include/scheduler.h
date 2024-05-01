@@ -10,7 +10,7 @@ typedef struct task {
     int id;
     pid_t pid;
     char command[10];
-    char program[100];
+    char program[300];
     char flag[3];
     int time;
     bool ocupation;
