@@ -79,24 +79,26 @@ void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
     char* program_names[MAX_PIPELINES]; // Array para armazenar nomes de programas
     int num_pipelines = 0;
 
-    char* token1;
-    char *aux = strdup(task_executing.program);
-    token1 = strtok(aux,"|");
+    char *token1;
+    char *program_copy = strdup(task_executing.program);
+    token1 = strtok(program_copy, "|");
 
-    while (token1 != NULL && num_pipelines < MAX_PIPELINES) {
-        char *token = strtok(token1, " ");
-        program_names[num_pipelines] = token; // Armazena o nome do programa
+    while (token1 != NULL && num_pipelines < MAX_PIPELINES) { // parser a funcionar
+        printf("\nToken1: %s\n", token1);
+        char *token = strdup(token1); // Fazer uma cópia para preservar a string original
+        program_names[num_pipelines] = strsep(&token, " "); // Extrair o nome do programa
 
         int i = 0;
         while (token != NULL && i < MAX_PROGRAM_ARGS) {
-            arguments[num_pipelines][i] = token; // Armazena os argumentos do programa
-            token = strtok(NULL, " ");
+            arguments[num_pipelines][i] = strsep(&token, " "); // Extrair os argumentos do programa
             i++;
         }
-        arguments[num_pipelines][i] = NULL; // Marca o final dos argumentos
-        token1 = strtok(NULL, "|");
+        arguments[num_pipelines][i] = NULL; // Marcar o final dos argumentos
         num_pipelines++;
+        free(token); // Liberar a cópia do token
+        token1 = strtok(NULL, "|");
     }
+    free(program_copy); // Liberar a cópia da string
 
     char filename[15];
     snprintf(filename, sizeof(filename), "Task%d.log", task_executing.id);
@@ -121,28 +123,22 @@ void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
         if (pid == 0) {
             if (i == 0) { // primeiro
                 pipe(fd[0]);
-                dup2(fd[0][1], 1);
-                close(fd[0][0]);
+                dup2(fd[0][1], STDOUT_FILENO);
                 close(fd[0][1]);
-
-            }
-            if (i < num_pipelines - 1 && i > 0) { // meio
+                close(fd[0][0]);
+            } else if (i < num_pipelines - 1) { // meio
                 pipe(fd[i]);
-
-                dup2(fd[i - 1][0], 0);
-                close(fd[i - 1][0]);
-
-                dup2(fd[i][1], 1);
+                dup2(fd[i-1][0], STDIN_FILENO);
+                dup2(fd[i][1], STDOUT_FILENO);
                 close(fd[i][0]);
                 close(fd[i][1]);
             } else { // ultimo
-                pipe(fd[num_pipelines-1]);
-                dup2(fd[num_pipelines - 1][0], 0);
-                dup2(outputFile_fd, 1);
-                close(fd[num_pipelines - 1][1]);
+                pipe(fd[num_pipelines - 1]);
+                dup2(fd[num_pipelines - 2][0], STDIN_FILENO);
+                dup2(outputFile_fd, STDOUT_FILENO);
                 close(fd[num_pipelines - 1][0]);
+                close(fd[num_pipelines - 1][1]);
             }
-
             execvp(program_names[i], arguments[i]);
             perror("Erro ao executar o programa");
             _exit(1);
@@ -169,6 +165,5 @@ void __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
         _exit(0);
     }
 
-    free(aux);
     free(outputFile);
 }
