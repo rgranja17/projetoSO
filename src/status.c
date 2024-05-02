@@ -97,18 +97,30 @@ char* __status_get_schedule_tasks_(){
     return result;
 }
 
-char* __status_get_server_state(){
-    char status[4096];
-    status[0] = '\0';
+char* status_get_server_state(){
+    char* executing_tasks_str = status_get_executing_tasks_();
+    char* schedule_tasks_str = status_get_schedule_tasks_();
+    char* executed_tasks_str = status_get_executed_tasks_();
 
-    strcat(status, "\nExecuting:\n");
-    snprintf(status + strlen(status), sizeof(status), "%s", __status_get_executing_tasks_());
+    ssize_t total_length = strlen(executing_tasks_str) + strlen(schedule_tasks_str) + strlen(executed_tasks_str) + 50;
+    char* status = (char)malloc(total_length sizeof(char));
 
-    strcat(status, "Schedule:\n");
-    snprintf(status + strlen(status), sizeof(status), "%s", __status_get_schedule_tasks_());
+    if (status == NULL) {
+        perror("Erro: Falha ao alocar memória para status");
+        exit(EXIT_FAILURE);
+    }
 
-    strcat(status, "Executed:\n");
-    snprintf(status + strlen(status), sizeof(status), "%s", __status_get_executed_tasks_());
+    int written = snprintf(status, total_length, "\nExecuting:\n%s\nSchedule:\n%s\nExecuted:\n%s\n", executing_tasks_str, schedule_tasks_str, executed_tasks_str);
+
+    if (written < 0) {
+        perror("Erro ao criar a string de status");
+        free(status);
+        exit(EXIT_FAILURE);
+    }
+
+    free(executing_tasks_str);
+    free(schedule_tasks_str);
+    free(executed_tasks_str);
 
     return status;
 }
