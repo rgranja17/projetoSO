@@ -57,7 +57,7 @@ char* __status_get_executed_tasks_(){
     buffer[0] = '\0';
 
     Task tmp;
-    char aux[256];
+    char aux[512];
     while((read(fd,&tmp,sizeof(Task))) > 0){
         snprintf(aux, sizeof(aux), "%d %s %dms\n", tmp.id, tmp.program,tmp.time);
         strncat(buffer, aux, 2048 - strlen(buffer) - 1);
@@ -97,13 +97,13 @@ char* __status_get_schedule_tasks_(){
     return result;
 }
 
-char* status_get_server_state(){
-    char* executing_tasks_str = status_get_executing_tasks_();
-    char* schedule_tasks_str = status_get_schedule_tasks_();
-    char* executed_tasks_str = status_get_executed_tasks_();
+char* __status_get_server_state(){
+    char* executing_tasks_str = __status_get_executing_tasks_();
+    char* schedule_tasks_str = __status_get_schedule_tasks_();
+    char* executed_tasks_str = __status_get_executed_tasks_();
 
     ssize_t total_length = strlen(executing_tasks_str) + strlen(schedule_tasks_str) + strlen(executed_tasks_str) + 50;
-    char* status = (char)malloc(total_length sizeof(char));
+    char* status = malloc(total_length * sizeof(char*));
 
     if (status == NULL) {
         perror("Erro: Falha ao alocar memória para status");
