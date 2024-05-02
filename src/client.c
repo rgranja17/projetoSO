@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     char buf[BUFFER_SIZE];
 
     if(argc < 2) {
-        printf("Insufficient arguments. Use the help command for more info\n",argv[0]);
+        printf("Insufficient arguments. Use the help command for more info\n");
         return 1;
 
     } else if(strcmp(argv[1],"execute") == 0) {

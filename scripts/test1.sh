@@ -15,8 +15,6 @@ sleep 0.25
 sleep 0.25
 ./client execute 3 -u "uname -a" & #exibir informacoes do sistema7
 sleep 0.25
-./client execute 13000 -u "../progs-TP23_24/hello 12" & #executar programa teste hello
-sleep 0.25
 ./client execute 10 -p "cat ../src/orchestrator.c | grep "open" | wc -l"
 
 #esperar um pouco para as tarefas serem processadas

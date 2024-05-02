@@ -108,7 +108,7 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
 
     fillArray(pipe_programs,task_program_cpy,&num_pipelines);
 
-    int fd[MAX_PIPELINES - 1][2];
+    int fd[num_pipelines - 1][2];
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
