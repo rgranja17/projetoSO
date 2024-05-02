@@ -52,7 +52,7 @@ void fillArray(char *array[],char *command, int* num_pipelines) {
 }
 
 
-Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd){
+Task __engine_execute_task(Task task_executing,int logFile_fd){
     char *aux = strdup(task_executing.program);
     char *token = strtok(aux, " ");
     char *programa = token;
@@ -72,19 +72,8 @@ Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd
     int status;
     pid_t pid = fork();
     if(pid == 0){
-        char filename[10];
-        snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
-
-        char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
-        strcpy(outputFile,outputPath);
-        strcat(outputFile,filename);
-
-        int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
-        if (!outputFile_fd) {
-            perror("Erro ao abrir tasks.log");
-            _exit(0);
-        }
-        dup2(outputFile_fd, STDOUT_FILENO);
+        dup2(logFile_fd, STDOUT_FILENO);
+        dup2(logFile_fd,STDERR_FILENO);
         execvp(programa, argumentos);
         perror("Erro ao executar o programa");
         _exit(1);
@@ -98,7 +87,7 @@ Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd
     task_executing.pid = getpid();
 
     char output_message[1024];
-    snprintf(output_message, sizeof(output_message), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n",
+    snprintf(output_message, sizeof(output_message), "\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n\n",
              task_executing.pid,task_executing.id,
              task_executing.time, task_executing.program);
 
@@ -112,23 +101,10 @@ Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd
     return task_executing;
 }
 
-Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFile_fd) {
+Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
     char* pipe_programs[MAX_PIPELINES];
     char* task_program_cpy = strdup(task_executing.program);
     int num_pipelines = 0;
-
-    char filename[10];
-    snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
-
-    char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
-    strcpy(outputFile,outputPath);
-    strcat(outputFile,filename);
-
-    int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
-    if (!outputFile_fd) {
-        perror("Erro ao abrir tasks.log");
-        _exit(0);
-    }
 
     fillArray(pipe_programs,task_program_cpy,&num_pipelines);
 
@@ -190,7 +166,8 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
             if(fork() == 0) {
 
                 dup2(fd[i - 1][0], STDIN_FILENO);
-                dup2(outputFile_fd,STDOUT_FILENO);
+                dup2(logFile_fd,STDOUT_FILENO);
+                dup2(logFile_fd,STDERR_FILENO);
                 close(fd[i - 1][1]);
                 close(fd[i - 1][0]);
 
@@ -214,7 +191,7 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
     task_executing.pid = getpid();
 
     char output_message[1024];
-    snprintf(output_message, sizeof(output_message), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n",
+    snprintf(output_message, sizeof(output_message), "\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n---------------------\n\n",
              task_executing.pid, task_executing.id,
              task_executing.time, task_executing.program);
 
@@ -224,6 +201,5 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
         _exit(0);
     }
 
-    free(outputFile);
     return task_executing;
 }
