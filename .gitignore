@@ -1,0 +1,9 @@
+*.DS_Store
+*.exe
+*.o
+.git/
+.vscode/
+.idea/
+.log/
+.tmp/
+.obj/
