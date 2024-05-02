@@ -87,9 +87,40 @@ int main(int argc, char* argv[]) {
 
         close(server_client_fifo);
 
-    } else if(strcmp(argv[1],"quit") == 0){
+    } else if(strcmp(argv[1],"quit") == 0 && strcmp(argv[2],"-a") == 0){
+        strcpy(tarefa.command,argv[1]);
+        strcpy(tarefa.flag,argv[2]);
+        strcpy(tarefa.program, argv[3]);
 
-        // para fazer
+        char buffer[50];
+
+        int server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+        int bytes_written = write(server_client_fifo,&tarefa,sizeof(Task));
+        close(server_client_fifo);
+
+        server_client_fifo = open(SERVER_CLIENT_FIFO,O_RDONLY);
+        int bytes_read = read(server_client_fifo,buffer,sizeof(buffer));
+        close(server_client_fifo);
+        buffer[bytes_read] = '\0';
+
+        printf("\n%s\n",buffer);
+    }
+    else if(strcmp(argv[1],"help") == 0){
+        strcpy(tarefa.command,argv[1]);
+
+        char buffer[4096];
+
+        int server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+        int bytes_written = write(server_client_fifo,&tarefa,sizeof(Task));
+        close(server_client_fifo);
+
+        server_client_fifo = open(SERVER_CLIENT_FIFO,O_RDONLY);
+        int bytes_read = read(server_client_fifo,buffer,sizeof(buffer));
+        close(server_client_fifo);
+        buffer[bytes_read] = '\0';
+
+        printf("\n%s\n",buffer);
+
     }
 
     return 0;

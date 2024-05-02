@@ -155,7 +155,7 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
             pipe(fd[0]);
             if(fork() == 0) {
 
-                dup2(fd[0][1], 1);
+                dup2(fd[0][1], STDOUT_FILENO);
                 close(fd[0][0]);
                 close(fd[0][1]);
 
@@ -170,14 +170,12 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
             pipe(fd[i]);
             if(fork() == 0) {
 
-                dup2(fd[i - 1][0], 0);
-                // o de escrita anterior está fechado
+                dup2(fd[i - 1][0], STDIN_FILENO);
                 close(fd[i - 1][0]);
 
-                dup2(fd[i][1], 1);
+                dup2(fd[i][1], STDOUT_FILENO);
                 close(fd[i][0]);
                 close(fd[i][1]);
-
 
                 execvp(programa, argumentos);
 
@@ -191,7 +189,7 @@ Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFil
         } else if(i == num_pipelines - 1){ // ultimo
             if(fork() == 0) {
 
-                dup2(fd[i - 1][0], 0);
+                dup2(fd[i - 1][0], STDIN_FILENO);
                 dup2(outputFile_fd,STDOUT_FILENO);
                 close(fd[i - 1][1]);
                 close(fd[i - 1][0]);

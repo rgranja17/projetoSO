@@ -63,7 +63,7 @@ char* __status_get_executed_tasks_(){
         strncat(buffer, aux, 2048 - strlen(buffer) - 1);
     }
     close(fd);
-    char* result = strdup(buffer); // Aloca memória dinamicamente e copia o conteúdo de buffer
+    char* result = strdup(buffer);
     return result;
 }
 
@@ -78,7 +78,7 @@ char* __status_get_executing_tasks_(){
         }
 
     }
-    char* result = strdup(executing_tasks_str); // Aloca memória dinamicamente e copia o conteúdo de buffer
+    char* result = strdup(executing_tasks_str);
     return result;
 }
 
@@ -93,7 +93,7 @@ char* __status_get_schedule_tasks_(){
         snprintf(aux,sizeof(aux),"%d %s\n",pending_tasks[i].id,pending_tasks[i].program);
         strcat(buffer,aux);
     }
-    char* result = strdup(buffer); // Aloca memória dinamicamente e copia o conteúdo de buffer
+    char* result = strdup(buffer);
     return result;
 }
 
@@ -101,7 +101,7 @@ char* __status_get_server_state(){
     char status[4096];
     status[0] = '\0';
 
-    strcat(status, "Executing:\n");
+    strcat(status, "\nExecuting:\n");
     snprintf(status + strlen(status), sizeof(status), "%s", __status_get_executing_tasks_());
 
     strcat(status, "Schedule:\n");

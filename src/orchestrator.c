@@ -14,6 +14,7 @@
 #include <errno.h>
 
 #define SERVER_CLIENT_FIFO "../tmp/server_client_fifo"
+#define ADMIN_PASSWORD "password"
 
 int main(int argc, char** argv) {
     if(argc < 3){
@@ -54,7 +55,8 @@ int main(int argc, char** argv) {
     __scheduler_init__();
     __status_init_(max_parallel_tasks);
     int num_tasks_executing = 0;
-    while(1){
+    int server_status = 1;
+    while(server_status){
         Task task_read;
         Task task_executing;
         int server_client_fifo = open(SERVER_CLIENT_FIFO, O_RDONLY);
@@ -72,6 +74,36 @@ int main(int argc, char** argv) {
                 strcat(buffer,__status_get_server_state());
                 server_client_fifo = open(SERVER_CLIENT_FIFO, O_WRONLY);
                 write(server_client_fifo,buffer,strlen(buffer));
+                close(server_client_fifo);
+                continue;
+            }
+            if(strcmp(task_read.command,"quit") == 0 && strcmp(task_read.flag,"-a") == 0){
+                if(strcmp(task_read.program,ADMIN_PASSWORD) == 0){
+                    server_status = 0;
+                    char msg[50] = "Server closed!";
+                    server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+                    write(server_client_fifo,msg,strlen(msg));
+                    close(server_client_fifo);
+                    continue;
+                } else {
+                    char msg[] = "Wrong password!";
+                    server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+                    write(server_client_fifo,msg,strlen(msg));
+                    close(server_client_fifo);
+                    continue;
+                }
+            }
+            if(strcmp(task_read.command,"help") == 0){
+                char *help_message = "Welcome to the task orchestrator!\n"
+                                       "To request a task, use 'execute <time> -u \"<task name> <arguments>\"'.\n"
+                                       "To request a pipeline task, use 'execute <time> -p  \"program1 | program2 | ...\"'.\n"
+                                       "After the request, you'll receive a task ID.\n"
+                                       "Your task's output will be shown on the 'logs' dir, on a file with your task ID name.\n"
+                                       "You can check the server status using the command 'status'\n"
+                                       "In order to close the server, use the command 'quit', with the admin flag and the admin password.\n";
+
+                server_client_fifo = open(SERVER_CLIENT_FIFO,O_WRONLY);
+                write(server_client_fifo,help_message,strlen(help_message));
                 close(server_client_fifo);
                 continue;
             }
@@ -126,5 +158,6 @@ int main(int argc, char** argv) {
         }
 
     }
+    unlink(SERVER_CLIENT_FIFO);
     return 0;
 }
