@@ -98,26 +98,34 @@ char* __status_get_schedule_tasks_(){
 }
 
 char* __status_get_server_state(){
+    // Obtenha os strings de tarefas
     char* executing_tasks_str = __status_get_executing_tasks_();
     char* schedule_tasks_str = __status_get_schedule_tasks_();
     char* executed_tasks_str = __status_get_executed_tasks_();
 
+    // Calcule o comprimento total necessário para o status
     ssize_t total_length = strlen(executing_tasks_str) + strlen(schedule_tasks_str) + strlen(executed_tasks_str) + 50;
-    char* status = malloc(total_length * sizeof(char*));
 
+    // Aloque memória para o status
+    char* status = malloc(total_length * sizeof(char));
+
+    // Verifique se a alocação foi bem-sucedida
     if (status == NULL) {
         perror("Erro: Falha ao alocar memória para status");
         exit(EXIT_FAILURE);
     }
 
+    // Escreva o status no buffer
     int written = snprintf(status, total_length, "\nExecuting:\n%s\nSchedule:\n%s\nExecuted:\n%s\n", executing_tasks_str, schedule_tasks_str, executed_tasks_str);
 
+    // Verifique se houve erro ao escrever no buffer
     if (written < 0) {
         perror("Erro ao criar a string de status");
         free(status);
         exit(EXIT_FAILURE);
     }
 
+    // Libere a memória alocada para os strings de tarefas
     free(executing_tasks_str);
     free(schedule_tasks_str);
     free(executed_tasks_str);

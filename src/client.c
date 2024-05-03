@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 
         close(server_client_fifo);
 
-    } else if(strcmp(argv[1],"quit") == 0 && strcmp(argv[2],"-a") == 0){
+    } else if( argc == 4 && strcmp(argv[1],"quit") == 0 && strcmp(argv[2],"-a") == 0){
         strcpy(tarefa.command,argv[1]);
         strcpy(tarefa.flag,argv[2]);
         strcpy(tarefa.program, argv[3]);
@@ -98,6 +98,16 @@ int main(int argc, char* argv[]) {
         int bytes_read = read(server_client_fifo,buffer,sizeof(buffer));
         close(server_client_fifo);
         buffer[bytes_read] = '\0';
+
+
+        if(bytes_read <= 0){
+            perror ("Erro escrita fifo\n");
+            return 1;
+        }
+        if(bytes_written <= 0){
+            perror("Erro escrita no STDOUT\n");
+            return 1;
+        }
 
         printf("\n%s\n",buffer);
     }
