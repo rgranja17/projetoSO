@@ -2,7 +2,6 @@
 
 #Este script testa a execução de tarefas individuais de uma vez.
 #Cada tarefa é enviada separadamente para o servidor, permitindo testar a capacidade do servidor de lidar com várias tarefas concorrentes.
-#operador & inicia cada script em segundo plano
 
 cd ../bin
 

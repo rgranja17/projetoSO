@@ -20,13 +20,13 @@ int main(int argc, char** argv) {
     if(argc < 3){
         char error_message[30];
         snprintf(error_message,sizeof(error_message),"Use: %s <output-path> <parallel_tasks>\n",argv[0]);
-        write(STDOUT_FILENO,error_message,strlen(error_message));
+        write(STDERR_FILENO,error_message,strlen(error_message));
         return 1;
     }
     int max_parallel_tasks = atoi(argv[2]);
     if(max_parallel_tasks == 0){
         char error_message[] = "Min parallel tasks of zero\n";
-        write(STDOUT_FILENO,error_message,strlen(error_message));
+        write(STDERR_FILENO,error_message,strlen(error_message));
     }
     char outputPath[100];
     strcpy(outputPath,argv[1]);
@@ -36,7 +36,8 @@ int main(int argc, char** argv) {
 
     int logFile_fd = open(output_log_file_path, O_WRONLY | O_CREAT | O_APPEND, 0666);
     if (logFile_fd == -1) {
-        perror("Erro ao abrir/criar o arquivo de log");
+        char errorMsg[] = "Erro ao abrir/criar o arquivo de log";
+        write(STDERR_FILENO,errorMsg,strlen(errorMsg));
         return 1;
     }
     char header[] = "ID,Program,Arguments,Runtime\n";
@@ -47,7 +48,9 @@ int main(int argc, char** argv) {
 
     if (mkfifo(SERVER_CLIENT_FIFO, 0666) == -1) {
         if(errno != EEXIST){
-            perror("Erro criação fifo\n");
+            char errorMsg[] = "Erro na criação do fifo";
+            write(STDERR_FILENO,errorMsg,strlen(errorMsg));
+            return 1;
         }
     }
 
@@ -94,7 +97,7 @@ int main(int argc, char** argv) {
                 }
             }
             if(strcmp(task_read.command,"help") == 0){
-                char *help_message = "Welcome to the task orchestrator!\n"
+                char *help_message = "\nWelcome to the task orchestrator!\n"
                                        "To request a task, use 'execute <time> -u \"<task name> <arguments>\"'.\n"
                                        "To request a pipeline task, use 'execute <time> -p  \"program1 | program2 | ...\"'.\n"
                                        "After the request, you'll receive a task ID.\n"

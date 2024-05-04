@@ -132,6 +132,7 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
             if(fork() == 0) {
 
                 dup2(fd[0][1], STDOUT_FILENO);
+                dup2(logFile_fd,STDERR_FILENO);
                 close(fd[0][0]);
                 close(fd[0][1]);
 
@@ -147,6 +148,7 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
             if(fork() == 0) {
 
                 dup2(fd[i - 1][0], STDIN_FILENO);
+                dup2(logFile_fd,STDERR_FILENO);
                 close(fd[i - 1][0]);
 
                 dup2(fd[i][1], STDOUT_FILENO);

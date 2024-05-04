@@ -17,7 +17,8 @@ int main(int argc, char* argv[]) {
     char buf[BUFFER_SIZE];
 
     if(argc < 2) {
-        printf("Insufficient arguments. Use the help command for more info\n");
+        char msg[] = "Insufficient arguments. Use the help command for more info\n";
+        write(STDOUT_FILENO,msg,strlen(msg));
         return 1;
 
     } else if(strcmp(argv[1],"execute") == 0) {
@@ -33,7 +34,8 @@ int main(int argc, char* argv[]) {
             ssize_t bytes_written;
             bytes_written = write(server_client_fifo,&tarefa,sizeof(Task));
             if(bytes_written <= 0){
-                perror ("Erro escrita fifo\n");
+                char msgErr[] = "Erro escrita fifo\n";
+                write(STDERR_FILENO,msgErr,strlen(msgErr));
                 return 1;
             }
             close(server_client_fifo);
@@ -42,14 +44,23 @@ int main(int argc, char* argv[]) {
             ssize_t bytes_read;
             bytes_read = read(server_client_fifo,&id, sizeof(int));
             if(bytes_read <= 0){
-                perror ("Erro escrita fifo\n");
+                char msgErr[] = "Erro escrita fifo\n";
+                write(STDERR_FILENO,msgErr,strlen(msgErr));
                 return 1;
             }
 
             close(server_client_fifo);
 
-            printf("ID da tarefa: %d\n",id);
+            char outputMsg[50];
+            snprintf(outputMsg,sizeof(outputMsg),"ID da tarefa: %d\n",id);
 
+            bytes_written = write(STDOUT_FILENO,outputMsg,strlen(outputMsg));
+
+            if(bytes_written <= 0){
+                char msgErr[] = "Erro escrita fifo\n";
+                write(STDERR_FILENO,msgErr,strlen(msgErr));
+                return 1;
+            }
         }
 
     } else if(strcmp(argv[1],"status") == 0) {
@@ -59,7 +70,8 @@ int main(int argc, char* argv[]) {
         ssize_t bytes_written;
         bytes_written = write(server_client_fifo,&tarefa,sizeof(Task));
         if(bytes_written <= 0){
-            perror ("Erro escrita fifo\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
         close(server_client_fifo);
@@ -73,11 +85,13 @@ int main(int argc, char* argv[]) {
         bytes_written = write(STDOUT_FILENO,buf,strlen(buf));
 
         if(bytes_read <= 0){
-            perror ("Erro escrita fifo\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
         if(bytes_written <= 0){
-            perror("Erro escrita no STDOUT\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
 
@@ -99,17 +113,19 @@ int main(int argc, char* argv[]) {
         close(server_client_fifo);
         buffer[bytes_read] = '\0';
 
+        bytes_written = write(STDOUT_FILENO,buffer,strlen(buffer));
 
         if(bytes_read <= 0){
-            perror ("Erro escrita fifo\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
         if(bytes_written <= 0){
-            perror("Erro escrita no STDOUT\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
 
-        printf("\n%s\n",buffer);
     }
     else if(strcmp(argv[1],"help") == 0){
         strcpy(tarefa.command,argv[1]);
@@ -125,15 +141,17 @@ int main(int argc, char* argv[]) {
         close(server_client_fifo);
         buffer[bytes_read] = '\0';
 
+        bytes_written = write(STDOUT_FILENO,buffer,strlen (buffer));
         if(bytes_read <= 0){
-            perror ("Erro escrita fifo\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
             return 1;
         }
         if(bytes_written <= 0) {
-            perror("Erro escrita no STDOUT\n");
+            char msgErr[] = "Erro escrita fifo\n";
+            write(STDERR_FILENO,msgErr,strlen(msgErr));
+            return 1;
         }
-
-        printf("\n%s\n",buffer);
 
     }
     return 0;
