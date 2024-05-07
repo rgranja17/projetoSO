@@ -52,12 +52,11 @@ void fillArray(char *array[],char *command, int* num_pipelines) {
 }
 
 
-Task __engine_execute_task(Task task_executing,int logFile_fd){
+Task __engine_execute_task(Task task_executing, char* outputPath, int logFile_fd){
     char *aux = strdup(task_executing.program);
     char *token = strtok(aux, " ");
     char *programa = token;
     char *argumentos[11];
-
     int i = 0;
     while (token != NULL && i < 10) {
         argumentos[i] = token;
@@ -65,43 +64,45 @@ Task __engine_execute_task(Task task_executing,int logFile_fd){
         i++;
     }
     argumentos[i] = NULL;
-
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
     int status;
     pid_t pid = fork();
     if(pid == 0){
-        dup2(logFile_fd, STDOUT_FILENO);
-        dup2(logFile_fd,STDERR_FILENO);
+        char filename[10];
+        snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
+        char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
+        strcpy(outputFile,outputPath);
+        strcat(outputFile,filename);
+        int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if (!outputFile_fd) {
+            perror("Erro ao abrir tasks.log");
+            _exit(0);
+        }
+        dup2(outputFile_fd, STDOUT_FILENO);
         execvp(programa, argumentos);
         perror("Erro ao executar o programa");
         _exit(1);
     }
     waitpid(pid,&status,0);
-
     gettimeofday(&end, NULL);
     long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
-
     task_executing.time = (int) runtime;
     task_executing.pid = getpid();
-
     char output_message[1024];
-    snprintf(output_message, sizeof(output_message), "\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n\n",
+    snprintf(output_message, sizeof(output_message), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n",
              task_executing.pid,task_executing.id,
              task_executing.time, task_executing.program);
-
     ssize_t bytes_written = write(logFile_fd,&output_message,strlen(output_message));
     if(bytes_written <= 0){
         perror("Error writing on log file");
         _exit(0);
     }
-
     free(aux);
     return task_executing;
 }
 
-Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
+Task __engine_execute_pipeline(Task task_executing, char* outputPath, int logFile_fd) {
     char* pipe_programs[MAX_PIPELINES];
     char* task_program_cpy = strdup(task_executing.program);
     int num_pipelines = 0;
@@ -127,6 +128,17 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
         }
         argumentos[j] = NULL;
 
+        char filename[10];
+        snprintf(filename,sizeof(filename), "Task%d.log", task_executing.id);
+        char* outputFile = malloc(sizeof(char*) * (sizeof(outputPath) + sizeof(filename)));
+        strcpy(outputFile,outputPath);
+        strcat(outputFile,filename);
+        int outputFile_fd = open(outputFile, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if (!outputFile_fd) {
+            perror("Erro ao abrir tasks.log");
+            _exit(0);
+        }
+
         if (i == 0) {
             pipe(fd[0]);
             if(fork() == 0) {
@@ -137,12 +149,10 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
                 close(fd[0][1]);
 
                 execvp(programa, argumentos);
-
                 perror("Exec failed");
                 _exit(1);
             }
             close(fd[0][1]);
-
         } else if (i < num_pipelines - 1) { // meio
             pipe(fd[i]);
             if(fork() == 0) {
@@ -154,27 +164,20 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
                 dup2(fd[i][1], STDOUT_FILENO);
                 close(fd[i][0]);
                 close(fd[i][1]);
-
                 execvp(programa, argumentos);
-
                 perror("Exec failed");
                 _exit(1);
             }
             close(fd[i - 1][0]);
             close(fd[i][1]);
-
-
         } else if(i == num_pipelines - 1){ // ultimo
             if(fork() == 0) {
-
                 dup2(fd[i - 1][0], STDIN_FILENO);
-                dup2(logFile_fd,STDOUT_FILENO);
-                dup2(logFile_fd,STDERR_FILENO);
+                dup2(outputFile_fd,STDOUT_FILENO);
+                dup2(outputFile_fd,STDERR_FILENO);
                 close(fd[i - 1][1]);
                 close(fd[i - 1][0]);
-
                 execvp(programa, argumentos);
-
                 perror("Exec failed");
                 _exit(1);
             }
@@ -182,26 +185,22 @@ Task __engine_execute_pipeline(Task task_executing, int logFile_fd) {
         }
     }
 
+
     for (int i = 0; i < num_pipelines; i++) {
         wait(NULL);
     }
-
     gettimeofday(&end, NULL);
     long runtime = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000; // em ms
-
     task_executing.time = (int) runtime;
     task_executing.pid = getpid();
-
     char output_message[1024];
-    snprintf(output_message, sizeof(output_message), "\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n---------------------\n\n",
+    snprintf(output_message, sizeof(output_message), "\n-------\nPid: %d (LocalID: %d);Time: %d ms;Arguments: %s\n-----\n",
              task_executing.pid, task_executing.id,
              task_executing.time, task_executing.program);
-
     ssize_t bytes_written = write(logFile_fd, &output_message, strlen(output_message));
     if (bytes_written <= 0) {
         perror("Error writing on log file");
         _exit(0);
     }
-
     return task_executing;
 }
